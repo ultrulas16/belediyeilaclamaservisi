@@ -3,7 +3,10 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Initialize client only if URL and Key are provided to prevent build errors
+export const supabase = supabaseUrl && supabaseAnonKey 
+  ? createClient(supabaseUrl, supabaseAnonKey) 
+  : null;
 
 export interface Lead {
   id: string;
@@ -17,6 +20,11 @@ export interface Lead {
 }
 
 export async function getLeads(): Promise<Lead[]> {
+  if (!supabase) {
+    console.error('Supabase client is not initialized. Check your environment variables.');
+    return [];
+  }
+
   try {
     const { data, error } = await supabase
       .from('leads')
@@ -36,6 +44,8 @@ export async function getLeads(): Promise<Lead[]> {
 }
 
 export async function addLead(lead: Omit<Lead, 'id' | 'date' | 'status'>): Promise<Lead | null> {
+  if (!supabase) return null;
+
   try {
     const { data, error } = await supabase
       .from('leads')
@@ -61,6 +71,8 @@ export async function addLead(lead: Omit<Lead, 'id' | 'date' | 'status'>): Promi
 }
 
 export async function updateLeadStatus(id: string, status: Lead['status']): Promise<void> {
+  if (!supabase) return;
+
   try {
     const { error } = await supabase
       .from('leads')
