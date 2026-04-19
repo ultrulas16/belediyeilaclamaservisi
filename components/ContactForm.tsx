@@ -75,7 +75,7 @@ export default function ContactForm({
               required
               name="phone"
               type="tel" 
-              placeholder="05XX XXX XX XX"
+              placeholder="0533 665 22 51"
               className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all"
             />
           </div>
