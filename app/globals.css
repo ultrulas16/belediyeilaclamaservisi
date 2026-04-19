@@ -1,0 +1,42 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #1e293b;
+  --primary: #1e3a8a; /* blue-900 */
+  --secondary: #dc2626; /* red-600 */
+  --accent: #f97316; /* orange-500 */
+}
+
+@theme inline {
+  --color-primary: var(--primary);
+  --color-secondary: var(--secondary);
+  --color-accent: var(--accent);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@layer base {
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-bold tracking-tight text-blue-950;
+  }
+}
+
+.container {
+  @apply max-w-7xl mx-auto;
+}
+
+/* Custom animations */
+@keyframes slideDown {
+  from { transform: translateY(-100%); }
+  to { transform: translateY(0); }
+}
+
+.animate-slide-down {
+  animation: slideDown 0.3s ease-out forwards;
+}
