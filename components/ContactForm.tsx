@@ -66,7 +66,7 @@ export default function ContactForm({
               name="name"
               type="text" 
               placeholder="Örn: Ahmet Yılmaz"
-              className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all"
+              className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all text-slate-900 font-medium"
             />
           </div>
           <div className="space-y-1.5">
@@ -76,7 +76,7 @@ export default function ContactForm({
               name="phone"
               type="tel" 
               placeholder="0533 665 22 51"
-              className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all"
+              className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all text-slate-900 font-medium"
             />
           </div>
         </div>
@@ -86,7 +86,7 @@ export default function ContactForm({
           <select 
             name="service"
             defaultValue={defaultService}
-            className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all appearance-none bg-white"
+            className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all appearance-none bg-white text-slate-900 font-medium"
           >
             <option value="">Seçiniz</option>
             <option value="hamambocek">Hamamböceği İlaçlama</option>
@@ -116,7 +116,7 @@ export default function ContactForm({
             name="message"
             rows={3}
             placeholder="Sorununuzu kısaca özetleyin..."
-            className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all"
+            className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all text-slate-900 font-medium"
           ></textarea>
         </div>
 
