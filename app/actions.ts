@@ -83,26 +83,34 @@ export async function trackVisit(path: string, clientReferrer?: string) {
 }
 
 // CHAT ACTIONS
-import { getOrCreateChatRoom, sendMessage, getChatMessages } from "@/lib/db";
+import { getOrCreateChatRoom, sendMessage, getChatMessages, getActiveChatRooms } from "@/lib/db";
 
-export async function getChatRoomAction(visitorId: string) {
-  return await getOrCreateChatRoom(visitorId);
+export async function getChatRoomAction(visitorId: string, name?: string, phone?: string) {
+  return await getOrCreateChatRoom(visitorId, name, phone);
 }
 
 export async function sendChatMessageAction(roomId: string, content: string, sender: 'visitor' | 'admin') {
   const message = await sendMessage(roomId, content, sender);
   
   if (message && sender === 'visitor') {
+    // Odadan kullanıcı bilgilerini alalım (Bildirim için)
+    const { data: room } = await supabaseAdmin!
+      .from('chat_rooms')
+      .select('visitor_name, visitor_phone')
+      .eq('id', roomId)
+      .single();
+
     // Ziyaretçi yazdığında admini uyar
     await sendTelegramNotification(notificationTemplates.newChatMessage({
       roomId,
       content,
-      sender: "Ziyaretçi"
+      sender: room ? `${room.visitor_name} (${room.visitor_phone})` : "Ziyaretçi"
     }));
   }
   
   return message;
 }
+
 
 export async function getChatMessagesAction(roomId: string) {
   return await getChatMessages(roomId);

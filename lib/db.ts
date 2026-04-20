@@ -50,6 +50,8 @@ export interface VisitStats {
 export interface ChatRoom {
   id: string;
   visitor_id: string;
+  visitor_name?: string;
+  visitor_phone?: string;
   last_message: string;
   updated_at: string;
   created_at: string;
@@ -221,7 +223,7 @@ export async function getVisitStats(): Promise<VisitStats | null> {
 }
 
 // CHAT FUNCTIONS
-export async function getOrCreateChatRoom(visitorId: string): Promise<ChatRoom | null> {
+export async function getOrCreateChatRoom(visitorId: string, name?: string, phone?: string): Promise<ChatRoom | null> {
   if (!supabaseAdmin) return null;
 
   try {
@@ -232,17 +234,37 @@ export async function getOrCreateChatRoom(visitorId: string): Promise<ChatRoom |
       .eq('visitor_id', visitorId)
       .single();
 
-    if (existingRoom) return existingRoom;
+    if (existingRoom) {
+      // Eğer isim/telefon değiştiyse veya yeni girildiyse odayı güncelle
+      if (name || phone) {
+        const { data: updated } = await supabaseAdmin
+          .from('chat_rooms')
+          .update({ 
+            visitor_name: name || existingRoom.visitor_name, 
+            visitor_phone: phone || existingRoom.visitor_phone 
+          })
+          .eq('id', existingRoom.id)
+          .select()
+          .single();
+        return updated;
+      }
+      return existingRoom;
+    }
 
-    // Yoksa oluştur (RLS izinleri SQL'de verildi)
+    // Yoksa oluştur
     const { data: newRoom, error: createError } = await supabaseAdmin
       .from('chat_rooms')
-      .insert([{ visitor_id: visitorId, last_message: 'Sohbet Başlatıldı' }])
+      .insert([{ 
+        visitor_id: visitorId, 
+        visitor_name: name || 'Anonim',
+        visitor_phone: phone || 'Belirtilmedi',
+        last_message: 'Sohbet Başlatıldı' 
+      }])
       .select()
       .single();
 
     if (createError) {
-      console.error('Error creating chat room:', createError);
+      console.error('Error creating chat room:', createError.message);
       return null;
     }
 

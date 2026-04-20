@@ -1,21 +1,31 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { MessageCircle, X, Send, User, ShieldCheck } from "lucide-react";
+import { MessageCircle, X, Send, User, ShieldCheck, CheckSquare, Square } from "lucide-react";
 import { supabase } from "@/lib/db";
 import { getChatRoomAction, sendChatMessageAction, getChatMessagesAction } from "@/app/actions";
 
 export default function LiveChat() {
   const [isOpen, setIsOpen] = useState(false);
+  const [step, setStep] = useState<"entry" | "chat">("entry");
   const [messages, setMessages] = useState<any[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [roomId, setRoomId] = useState<string | null>(null);
   const [visitorId, setVisitorId] = useState<string | null>(null);
+  
+  // Form States
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [kvkkAccepted, setKvkkAccepted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // 1. Ziyaretçi Kimliği ve Oda Kurulumu
+  // 1. Ziyaretçi Kimliği ve Mevcut Oda Kontrolü
   useEffect(() => {
     let vid = localStorage.getItem("chat_visitor_id");
+    const savedName = localStorage.getItem("chat_visitor_name");
+    
     if (!vid) {
       vid = "visitor_" + Math.random().toString(36).substring(7);
       localStorage.setItem("chat_visitor_id", vid);
@@ -23,17 +33,21 @@ export default function LiveChat() {
     setVisitorId(vid);
 
     const initChat = async () => {
-      const room = await getChatRoomAction(vid!);
-      if (room) {
-        setRoomId(room.id);
-        const existingMessages = await getChatMessagesAction(room.id);
-        setMessages(existingMessages);
+      // Eğer daha önce isim kaydedilmişse direkt odayı al ve sohbete geç
+      if (savedName) {
+        const room = await getChatRoomAction(vid!);
+        if (room) {
+          setRoomId(room.id);
+          const existingMessages = await getChatMessagesAction(room.id);
+          setMessages(existingMessages);
+          setStep("chat");
+        }
       }
     };
     initChat();
   }, []);
 
-  // 2. Realtime Bağlantısı (Mesajları anlık al)
+  // 2. Realtime Bağlantısı
   useEffect(() => {
     if (!roomId || !supabase) return;
 
@@ -48,7 +62,11 @@ export default function LiveChat() {
           filter: `room_id=eq.${roomId}`,
         },
         (payload) => {
-          setMessages((prev) => [...prev, payload.new]);
+          setMessages((prev) => {
+            // Tekrar eden mesajları engelle
+            if (prev.find(m => m.id === payload.new.id)) return prev;
+            return [...prev, payload.new];
+          });
         }
       )
       .subscribe();
@@ -63,8 +81,32 @@ export default function LiveChat() {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages, isOpen]);
+  }, [messages, isOpen, step]);
 
+  // 4. Sohbete Başla (Form Gönderimi)
+  const handleStartChat = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name || !phone || !kvkkAccepted || isSubmitting) return;
+
+    setIsSubmitting(true);
+    try {
+      const room = await getChatRoomAction(visitorId!, name, phone);
+      if (room) {
+        setRoomId(room.id);
+        localStorage.setItem("chat_visitor_name", name);
+        setStep("chat");
+        
+        // Hoşgeldin mesajı tetikle (isteğe bağlı)
+        await sendChatMessageAction(room.id, "Merhaba, size nasıl yardımcı olabilirim?", "admin");
+      }
+    } catch (error) {
+      console.error("Chat init error:", error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // 5. Mesaj Gönder
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputValue.trim() || !roomId) return;
@@ -72,15 +114,28 @@ export default function LiveChat() {
     const content = inputValue.trim();
     setInputValue("");
     
-    // Server action ile mesajı gönder ve bildirimi tetikle
-    await sendChatMessageAction(roomId, content, "visitor");
+    // Geçici olarak listeye ekle (Hız algısı için)
+    const tempMsg = { 
+      id: Math.random(), 
+      content, 
+      sender: "visitor", 
+      created_at: new Date().toISOString() 
+    };
+    setMessages(prev => [...prev, tempMsg]);
+
+    try {
+      await sendChatMessageAction(roomId, content, "visitor");
+    } catch (error) {
+      console.error("Send error:", error);
+      // Hata durumunda mesajın yanına ünlem konulabilir
+    }
   };
 
   return (
     <div className="fixed bottom-6 right-24 z-50 flex flex-col items-end">
       {/* Sohbet Penceresi */}
       {isOpen && (
-        <div className="mb-4 w-[350px] h-[500px] bg-white rounded-[2rem] shadow-2xl border border-slate-100 flex flex-col overflow-hidden animate-in slide-in-from-bottom-5 duration-300">
+        <div className="mb-4 w-[350px] h-[550px] bg-white rounded-[2.5rem] shadow-2xl border border-slate-100 flex flex-col overflow-hidden animate-in slide-in-from-bottom-5 duration-300">
           {/* Header */}
           <div className="bg-slate-900 p-6 text-white flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -100,58 +155,106 @@ export default function LiveChat() {
             </button>
           </div>
 
-          {/* Messages Area */}
-          <div 
-            ref={scrollRef}
-            className="flex-grow p-6 overflow-y-auto space-y-4 bg-slate-50/50"
-          >
-            {messages.length === 0 && (
-              <div className="text-center py-10 space-y-4">
-                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto text-blue-600">
-                  <MessageCircle size={32} />
-                </div>
-                <p className="text-sm font-bold text-slate-500">Size nasıl yardımcı olabiliriz?</p>
+          {step === "entry" ? (
+            /* Giriş Formu */
+            <div className="flex-grow p-8 bg-slate-50 flex flex-col overflow-y-auto">
+              <div className="mb-8 text-center">
+                <h3 className="text-xl font-black text-slate-800 mb-2">Hoş Geldiniz!</h3>
+                <p className="text-xs text-slate-500 font-bold">Lütfen başlamadan önce bilgilerinizi girin.</p>
               </div>
-            )}
-            
-            {messages.map((msg, i) => (
-              <div 
-                key={i} 
-                className={`flex flex-col ${msg.sender === "visitor" ? "items-end" : "items-start"}`}
-              >
-                <div 
-                  className={`max-w-[80%] p-4 rounded-2xl text-sm font-medium shadow-sm ${
-                    msg.sender === "visitor" 
-                      ? "bg-slate-900 text-white rounded-tr-none" 
-                      : "bg-white text-slate-700 border border-slate-100 rounded-tl-none"
-                  }`}
-                >
-                  {msg.content}
-                </div>
-                <span className="text-[9px] text-slate-400 font-bold mt-1 uppercase">
-                  {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                </span>
-              </div>
-            ))}
-          </div>
 
-          {/* Input Area */}
-          <form onSubmit={handleSend} className="p-4 bg-white border-t border-slate-100 flex gap-2">
-            <input 
-              type="text"
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              placeholder="Bir mesaj yazın..."
-              className="flex-grow bg-slate-100 border-none rounded-2xl px-4 py-3 text-sm font-bold text-slate-900 focus:ring-2 focus:ring-blue-600 transition-all placeholder:text-slate-400"
-            />
-            <button 
-              type="submit"
-              disabled={!inputValue.trim()}
-              className="bg-blue-600 text-white p-3 rounded-2xl hover:bg-blue-700 transition-all shadow-lg active:scale-95 disabled:opacity-50 disabled:scale-100"
-            >
-              <Send size={20} />
-            </button>
-          </form>
+              <form onSubmit={handleStartChat} className="space-y-4">
+                <div>
+                  <label className="text-[10px] uppercase font-black text-slate-400 mb-1 block px-2">Ad Soyad</label>
+                  <input 
+                    required
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Adınız Soyadınız"
+                    className="w-full bg-white border border-slate-200 rounded-2xl px-5 py-4 text-sm font-bold text-slate-900 focus:ring-2 focus:ring-blue-600 transition-all outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] uppercase font-black text-slate-400 mb-1 block px-2">Telefon</label>
+                  <input 
+                    required
+                    type="tel"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="05xx xxx xx xx"
+                    className="w-full bg-white border border-slate-200 rounded-2xl px-5 py-4 text-sm font-bold text-slate-900 focus:ring-2 focus:ring-blue-600 transition-all outline-none"
+                  />
+                </div>
+                
+                <div 
+                  className="flex gap-3 items-start p-2 cursor-pointer group"
+                  onClick={() => setKvkkAccepted(!kvkkAccepted)}
+                >
+                  <div className="mt-1 flex-shrink-0">
+                    {kvkkAccepted ? <CheckSquare className="text-blue-600" size={18} /> : <Square className="text-slate-300" size={18} />}
+                  </div>
+                  <p className="text-[10px] font-bold text-slate-500 leading-relaxed">
+                    <span className="text-slate-800 underline">KVKK ve Gizlilik Sözleşmesi</span>'ni okudum, iletişim bilgilerimin işlenmesini kabul ediyorum.
+                  </p>
+                </div>
+
+                <button 
+                  type="submit"
+                  disabled={!kvkkAccepted || !name || !phone || isSubmitting}
+                  className="w-full bg-blue-600 text-white font-black py-4 rounded-2xl shadow-lg hover:bg-blue-700 transition-all active:scale-95 disabled:opacity-50 disabled:grayscale"
+                >
+                  {isSubmitting ? "Hazırlanıyor..." : "Sohbete Başla"}
+                </button>
+              </form>
+            </div>
+          ) : (
+            /* Sohbet Alanı */
+            <>
+              <div 
+                ref={scrollRef}
+                className="flex-grow p-6 overflow-y-auto space-y-4 bg-slate-50/50"
+              >
+                {messages.map((msg, i) => (
+                  <div 
+                    key={i} 
+                    className={`flex flex-col ${msg.sender === "visitor" ? "items-end" : "items-start"}`}
+                  >
+                    <div 
+                      className={`max-w-[80%] p-4 rounded-2xl text-sm font-medium shadow-sm ${
+                        msg.sender === "visitor" 
+                          ? "bg-slate-900 text-white rounded-tr-none" 
+                          : "bg-white text-slate-700 border border-slate-100 rounded-tl-none"
+                      }`}
+                    >
+                      {msg.content}
+                    </div>
+                    <span className="text-[9px] text-slate-400 font-bold mt-1 uppercase">
+                      {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Input Area */}
+              <form onSubmit={handleSend} className="p-4 bg-white border-t border-slate-100 flex gap-2">
+                <input 
+                  type="text"
+                  value={inputValue}
+                  onChange={(e) => setInputValue(e.target.value)}
+                  placeholder="Bir mesaj yazın..."
+                  className="flex-grow bg-slate-100 border-none rounded-2xl px-4 py-3 text-sm font-bold text-slate-900 focus:ring-2 focus:ring-blue-600 transition-all placeholder:text-slate-400"
+                />
+                <button 
+                  type="submit"
+                  disabled={!inputValue.trim() || !roomId}
+                  className="bg-blue-600 text-white p-3 rounded-2xl hover:bg-blue-700 transition-all shadow-lg active:scale-95 disabled:opacity-50 disabled:scale-100"
+                >
+                  <Send size={20} />
+                </button>
+              </form>
+            </>
+          )}
         </div>
       )}
 
