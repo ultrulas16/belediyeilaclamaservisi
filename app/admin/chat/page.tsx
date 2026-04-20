@@ -43,7 +43,7 @@ export default function AdminChatPage() {
       )
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
+    return () => { supabase?.removeChannel(channel); };
   }, []);
 
   // 2. Mesajları Yükle ve Realtime Bağlan
@@ -73,7 +73,7 @@ export default function AdminChatPage() {
       )
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
+    return () => { supabase?.removeChannel(channel); };
   }, [activeRoom]);
 
   // 3. Otomatik Scroll
