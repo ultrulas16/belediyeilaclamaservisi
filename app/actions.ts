@@ -83,18 +83,18 @@ export async function trackVisit(path: string, clientReferrer?: string) {
 }
 
 // CHAT ACTIONS
-import { getOrCreateChatRoom, sendMessage, getChatMessages, getActiveChatRooms } from "@/lib/db";
+import { getOrCreateChatRoom, sendMessage, getChatMessages, getActiveChatRooms, supabaseAdmin } from "@/lib/db";
 
-export async function getChatRoomAction(visitorId: string, name?: string, phone?: string) {
-  return await getOrCreateChatRoom(visitorId, name, phone);
+export async function getChatRoomAction(sessionId: string, name?: string, phone?: string) {
+  return await getOrCreateChatRoom(sessionId, name, phone);
 }
 
 export async function sendChatMessageAction(roomId: string, content: string, sender: 'visitor' | 'admin') {
   const message = await sendMessage(roomId, content, sender);
   
-  if (message && sender === 'visitor') {
+  if (message && sender === 'visitor' && supabaseAdmin) {
     // Odadan kullanıcı bilgilerini alalım (Bildirim için)
-    const { data: room } = await supabaseAdmin!
+    const { data: room } = await supabaseAdmin
       .from('chat_sessions')
       .select('full_name, phone')
       .eq('session_id', roomId)
@@ -111,10 +111,10 @@ export async function sendChatMessageAction(roomId: string, content: string, sen
   return message;
 }
 
-
 export async function getChatMessagesAction(roomId: string) {
   return await getChatMessages(roomId);
 }
+
 
 
 

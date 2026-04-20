@@ -33,11 +33,10 @@ export default function LiveChat() {
     setVisitorId(sid);
 
     const initChat = async () => {
-      // Eğer daha önce isim kaydedilmişse direkt odayı al ve sohbete geç
       if (savedName) {
         const room = await getChatRoomAction(sid!);
         if (room) {
-          setRoomId(room.session_id); // session_id üzerinden takip edeceğiz
+          setRoomId(room.session_id);
           const existingMessages = await getChatMessagesAction(room.session_id);
           setMessages(existingMessages);
           setStep("chat");
