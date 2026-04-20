@@ -3,6 +3,7 @@
 import { addLead, updateLeadStatus, logVisit } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
+import { sendTelegramNotification, notificationTemplates } from "@/lib/notifications";
 
 export async function submitContactForm(formData: FormData) {
   const name = formData.get("name") as string;
@@ -27,9 +28,18 @@ export async function submitContactForm(formData: FormData) {
     return { error: "Talep iletilemedi. Lütfen daha sonra tekrar deneyin." };
   }
 
+  // Telegram Bildirimi Gönder
+  await sendTelegramNotification(notificationTemplates.newLead({
+    name,
+    phone,
+    service,
+    location: location || "Belirtilmedi"
+  }));
+
   revalidatePath("/admin/leads");
   return { success: true };
 }
+
 
 export async function changeLeadStatus(id: string, status: any) {
   await updateLeadStatus(id, status);
@@ -43,7 +53,12 @@ export async function trackVisit(path: string, clientReferrer?: string) {
     const ip = headerList.get("x-forwarded-for")?.split(",")[0] || "unknown";
     const userAgent = headerList.get("user-agent") || "unknown";
     
-    // Google aramalarından gelişi yakalamak için referer önemli
+    // Basit cihaz tanıma
+    let device = "Masaüstü";
+    if (userAgent.includes("iPhone")) device = "iPhone";
+    else if (userAgent.includes("Android")) device = "Android";
+    else if (userAgent.includes("iPad")) device = "iPad";
+
     const referer = clientReferrer || headerList.get("referer") || "Direkt Giriş";
 
     await logVisit({
@@ -52,8 +67,19 @@ export async function trackVisit(path: string, clientReferrer?: string) {
       path,
       user_agent: userAgent
     });
+
+    // Telegram Bildirimi Gönder (Sadece ana sayfa ve hizmet sayfaları için kafa karıştırmasın)
+    if (path === "/" || path.startsWith("/hizmetler")) {
+      await sendTelegramNotification(notificationTemplates.newVisitor({
+        ip,
+        path,
+        referer,
+        device
+      }));
+    }
   } catch (error) {
     console.error("Tracking error:", error);
   }
 }
+
 

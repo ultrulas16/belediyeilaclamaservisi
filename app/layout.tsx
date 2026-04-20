@@ -41,7 +41,18 @@ export const metadata: Metadata = {
   verification: {
     google: "google-site-verification-id-placeholder",
   },
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: siteConfig.name,
+  },
 };
+
+export const viewport = {
+  themeColor: "#1e3a8a",
+};
+
 
 export default function RootLayout({
   children,
