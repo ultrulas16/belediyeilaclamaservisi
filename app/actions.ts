@@ -1,7 +1,8 @@
 "use server";
 
-import { addLead, updateLeadStatus } from "@/lib/db";
+import { addLead, updateLeadStatus, logVisit } from "@/lib/db";
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 
 export async function submitContactForm(formData: FormData) {
   const name = formData.get("name") as string;
@@ -35,3 +36,24 @@ export async function changeLeadStatus(id: string, status: any) {
   revalidatePath("/admin/leads");
   revalidatePath("/admin");
 }
+
+export async function trackVisit(path: string, clientReferrer?: string) {
+  try {
+    const headerList = await headers();
+    const ip = headerList.get("x-forwarded-for")?.split(",")[0] || "unknown";
+    const userAgent = headerList.get("user-agent") || "unknown";
+    
+    // Google aramalarından gelişi yakalamak için referer önemli
+    const referer = clientReferrer || headerList.get("referer") || "Direkt Giriş";
+
+    await logVisit({
+      ip,
+      referer,
+      path,
+      user_agent: userAgent
+    });
+  } catch (error) {
+    console.error("Tracking error:", error);
+  }
+}
+

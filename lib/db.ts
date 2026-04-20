@@ -19,6 +19,23 @@ export interface Lead {
   status: 'Yeni' | 'Beklemede' | 'Arayacak' | 'Tamamlandı' | 'Acil';
 }
 
+export interface Visit {
+  id: number;
+  ip: string;
+  referer: string;
+  path: string;
+  user_agent: string;
+  created_at: string;
+}
+
+export interface VisitStats {
+  totalVisits: number;
+  uniqueIPs: number;
+  googleReferrals: number;
+  pageViews: { path: string, count: number }[];
+  recentVisits: Visit[];
+}
+
 export async function getLeads(): Promise<Lead[]> {
   if (!supabase) {
     console.error('Supabase client is not initialized. Check your environment variables.');
@@ -86,3 +103,81 @@ export async function updateLeadStatus(id: string, status: Lead['status']): Prom
     console.error('Error in updateLeadStatus:', error);
   }
 }
+
+export async function logVisit(visit: Omit<Visit, 'id' | 'created_at'>): Promise<void> {
+  if (!supabase) return;
+
+  try {
+    const { error } = await supabase
+      .from('visits')
+      .insert([visit]);
+
+    if (error) {
+      console.error('Error logging visit:', error);
+    }
+  } catch (error) {
+    console.error('Error in logVisit:', error);
+  }
+}
+
+export async function getVisitStats(): Promise<VisitStats | null> {
+  if (!supabase) return null;
+
+  try {
+    // Toplam ziyaretler
+    const { count: totalVisits, error: totalError } = await supabase
+      .from('visits')
+      .select('*', { count: 'exact', head: true });
+
+    // Tekil IPler (Son 24 saat için basitleştirilmiş)
+    const { data: uniqueData, error: uniqueError } = await supabase
+      .from('visits')
+      .select('ip');
+    
+    const uniqueIPs = new Set(uniqueData?.map(v => v.ip)).size;
+
+    // Google referansları
+    const { count: googleReferrals, error: googleError } = await supabase
+      .from('visits')
+      .select('*', { count: 'exact', head: true })
+      .ilike('referer', '%google%');
+
+    // Sayfa görüntüleme dağılımı
+    const { data: pathData, error: pathError } = await supabase
+      .from('visits')
+      .select('path');
+    
+    const pathCounts: Record<string, number> = {};
+    pathData?.forEach(v => {
+      pathCounts[v.path] = (pathCounts[v.path] || 0) + 1;
+    });
+    
+    const pageViews = Object.entries(pathCounts)
+      .map(([path, count]) => ({ path, count }))
+      .sort((a, b) => b.count - a.count);
+
+    // Son ziyaretler
+    const { data: recentVisits, error: recentError } = await supabase
+      .from('visits')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(50);
+
+    if (totalError || uniqueError || googleError || pathError || recentError) {
+      console.error('Error fetching visit stats:', { totalError, uniqueError, googleError, pathError, recentError });
+      return null;
+    }
+
+    return {
+      totalVisits: totalVisits || 0,
+      uniqueIPs,
+      googleReferrals: googleReferrals || 0,
+      pageViews,
+      recentVisits: (recentVisits as any) || []
+    };
+  } catch (error) {
+    console.error('Error in getVisitStats:', error);
+    return null;
+  }
+}
+

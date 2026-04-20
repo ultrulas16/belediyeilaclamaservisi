@@ -5,6 +5,7 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import WhatsAppFAB from "@/components/WhatsAppFAB";
 import JsonLd from "@/components/JsonLd";
+import VisitorTracker from "@/components/VisitorTracker";
 import { siteConfig } from "@/lib/config";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
@@ -125,6 +126,7 @@ export default function RootLayout({
         </main>
         <Footer />
         <WhatsAppFAB />
+        <VisitorTracker />
       </body>
     </html>
   );
