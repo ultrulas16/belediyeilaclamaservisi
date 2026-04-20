@@ -96,15 +96,15 @@ export async function sendChatMessageAction(roomId: string, content: string, sen
     // Odadan kullanıcı bilgilerini alalım (Bildirim için)
     const { data: room } = await supabaseAdmin!
       .from('chat_sessions')
-      .select('visitor_name, visitor_phone')
-      .eq('id', roomId)
+      .select('full_name, phone')
+      .eq('session_id', roomId)
       .single();
 
     // Ziyaretçi yazdığında admini uyar
     await sendTelegramNotification(notificationTemplates.newChatMessage({
       roomId,
       content,
-      sender: room ? `${room.visitor_name} (${room.visitor_phone})` : "Ziyaretçi"
+      sender: room ? `${room.full_name} (${room.phone})` : "Ziyaretçi"
     }));
   }
   

@@ -51,24 +51,23 @@ export default function AdminChatPage() {
     if (!activeRoom || !supabase) return;
 
     const fetchMessages = async () => {
-      const data = await getChatMessagesAction(activeRoom.id);
+      const data = await getChatMessagesAction(activeRoom.session_id);
       setMessages(data || []);
     };
     fetchMessages();
 
     const channel = supabase
-      .channel(`admin_room_${activeRoom.id}`)
+      .channel(`admin_room_${activeRoom.session_id}`)
       .on(
         "postgres_changes",
         {
           event: "INSERT",
           schema: "public",
           table: "messages",
-          filter: `room_id=eq.${activeRoom.id}`,
+          filter: `room_id=eq.${activeRoom.session_id}`,
         },
         (payload) => {
           setMessages((prev) => [...prev, payload.new as Message]);
-          // Odalar listesini de güncelle ki "last_message" yenilensin
           getActiveChatRooms().then(setRooms);
         }
       )
@@ -91,7 +90,7 @@ export default function AdminChatPage() {
     const content = inputValue.trim();
     setInputValue("");
     
-    await sendChatMessageAction(activeRoom.id, content, "admin");
+    await sendChatMessageAction(activeRoom.session_id, content, "admin");
   };
 
   if (isLoading) return <div className="p-8 text-center animate-pulse font-bold text-slate-400">Sohbet Merkezi Yükleniyor...</div>;
@@ -135,14 +134,14 @@ export default function AdminChatPage() {
                 <div className="flex-grow text-left overflow-hidden">
                   <div className="flex justify-between items-center mb-1">
                     <span className="font-black text-xs text-slate-800 tracking-tighter truncate w-32">
-                      {room.visitor_name || "Anonim Ziyaretçi"}
+                      {room.full_name || "Anonim Ziyaretçi"}
                     </span>
                     <span className="text-[9px] text-slate-400 font-bold uppercase">
                       {new Date(room.updated_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </span>
                   </div>
                   <p className="text-[10px] text-slate-500 font-medium truncate italic">
-                    {room.visitor_phone || "Telefon yok"} • {room.last_message || "Yeni Konuşma"}
+                    {room.phone || "Telefon yok"} • {room.last_message || "Yeni Konuşma"}
                   </p>
                 </div>
               </button>
@@ -163,13 +162,14 @@ export default function AdminChatPage() {
                 </div>
                 <div>
                   <h4 className="font-black text-slate-800 text-sm tracking-tight">
-                    {activeRoom.visitor_name || "Anonim"}
+                    {activeRoom.full_name || "Anonim"}
                   </h4>
                   <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest flex items-center gap-1">
-                    {activeRoom.visitor_phone} • <span className="text-green-500 animate-pulse">Çevrimiçi</span>
+                    {activeRoom.phone} • <span className="text-green-500 animate-pulse">Çevrimiçi</span>
                   </p>
                 </div>
               </div>
+
 
               <div className="flex items-center gap-2">
                 <button className="px-4 py-2 bg-slate-100 text-slate-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 transition-all">

@@ -23,22 +23,22 @@ export default function LiveChat() {
 
   // 1. Ziyaretçi Kimliği ve Mevcut Oda Kontrolü
   useEffect(() => {
-    let vid = localStorage.getItem("chat_visitor_id");
-    const savedName = localStorage.getItem("chat_visitor_name");
+    let sid = localStorage.getItem("chat_session_id");
+    const savedName = localStorage.getItem("chat_full_name");
     
-    if (!vid) {
-      vid = "visitor_" + Math.random().toString(36).substring(7);
-      localStorage.setItem("chat_visitor_id", vid);
+    if (!sid) {
+      sid = "sess_" + Math.random().toString(36).substring(7);
+      localStorage.setItem("chat_session_id", sid);
     }
-    setVisitorId(vid);
+    setVisitorId(sid);
 
     const initChat = async () => {
       // Eğer daha önce isim kaydedilmişse direkt odayı al ve sohbete geç
       if (savedName) {
-        const room = await getChatRoomAction(vid!);
+        const room = await getChatRoomAction(sid!);
         if (room) {
-          setRoomId(room.id);
-          const existingMessages = await getChatMessagesAction(room.id);
+          setRoomId(room.session_id); // session_id üzerinden takip edeceğiz
+          const existingMessages = await getChatMessagesAction(room.session_id);
           setMessages(existingMessages);
           setStep("chat");
         }
@@ -63,7 +63,6 @@ export default function LiveChat() {
         },
         (payload) => {
           setMessages((prev) => {
-            // Tekrar eden mesajları engelle
             if (prev.find(m => m.id === payload.new.id)) return prev;
             return [...prev, payload.new];
           });
@@ -92,12 +91,11 @@ export default function LiveChat() {
     try {
       const room = await getChatRoomAction(visitorId!, name, phone);
       if (room) {
-        setRoomId(room.id);
-        localStorage.setItem("chat_visitor_name", name);
+        setRoomId(room.session_id);
+        localStorage.setItem("chat_full_name", name);
         setStep("chat");
         
-        // Hoşgeldin mesajı tetikle (isteğe bağlı)
-        await sendChatMessageAction(room.id, "Merhaba, size nasıl yardımcı olabilirim?", "admin");
+        await sendChatMessageAction(room.session_id, "Merhaba, size nasıl yardımcı olabilirim?", "admin");
       }
     } catch (error) {
       console.error("Chat init error:", error);
@@ -105,6 +103,7 @@ export default function LiveChat() {
       setIsSubmitting(false);
     }
   };
+
 
   // 5. Mesaj Gönder
   const handleSend = async (e: React.FormEvent) => {
