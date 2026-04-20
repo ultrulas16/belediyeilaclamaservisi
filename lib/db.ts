@@ -2,10 +2,21 @@ import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
-// Initialize client only if URL and Key are provided to prevent build errors
+// Standart istemci (Ziyaretçiler için - RLS'ye takılır)
 export const supabase = supabaseUrl && supabaseAnonKey 
   ? createClient(supabaseUrl, supabaseAnonKey) 
+  : null;
+
+// Admin istemcisi (Sadece Server tarafında çalışır - RLS'yi baypas eder)
+export const supabaseAdmin = supabaseUrl && supabaseServiceKey
+  ? createClient(supabaseUrl, supabaseServiceKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    })
   : null;
 
 export interface Lead {
@@ -37,19 +48,19 @@ export interface VisitStats {
 }
 
 export async function getLeads(): Promise<Lead[]> {
-  if (!supabase) {
-    console.error('Supabase client is not initialized. Check your environment variables.');
+  if (!supabaseAdmin) {
+    console.error('Admin Supabase client is not initialized. Check your SUPABASE_SERVICE_ROLE_KEY.');
     return [];
   }
 
   try {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('leads')
       .select('*')
       .order('date', { ascending: false });
 
     if (error) {
-      console.error('Error fetching leads:', error);
+      console.error('Error fetching leads:', error.message);
       return [];
     }
 
@@ -121,29 +132,29 @@ export async function logVisit(visit: Omit<Visit, 'id' | 'created_at'>): Promise
 }
 
 export async function getVisitStats(): Promise<VisitStats | null> {
-  if (!supabase) return null;
+  if (!supabaseAdmin) return null;
 
   try {
     // Toplam ziyaretler
-    const { count: totalVisits, error: totalError } = await supabase
+    const { count: totalVisits, error: totalError } = await supabaseAdmin
       .from('visits')
       .select('*', { count: 'exact', head: true });
 
-    // Tekil IPler (Son 24 saat için basitleştirilmiş)
-    const { data: uniqueData, error: uniqueError } = await supabase
+    // Tekil IPler
+    const { data: uniqueData, error: uniqueError } = await supabaseAdmin
       .from('visits')
       .select('ip');
     
     const uniqueIPs = new Set(uniqueData?.map(v => v.ip)).size;
 
     // Google referansları
-    const { count: googleReferrals, error: googleError } = await supabase
+    const { count: googleReferrals, error: googleError } = await supabaseAdmin
       .from('visits')
       .select('*', { count: 'exact', head: true })
       .ilike('referer', '%google%');
 
     // Sayfa görüntüleme dağılımı
-    const { data: pathData, error: pathError } = await supabase
+    const { data: pathData, error: pathError } = await supabaseAdmin
       .from('visits')
       .select('path');
     
@@ -157,7 +168,7 @@ export async function getVisitStats(): Promise<VisitStats | null> {
       .sort((a, b) => b.count - a.count);
 
     // Son ziyaretler
-    const { data: recentVisits, error: recentError } = await supabase
+    const { data: recentVisits, error: recentError } = await supabaseAdmin
       .from('visits')
       .select('*')
       .order('created_at', { ascending: false })
