@@ -164,8 +164,20 @@ export async function getVisitStats(): Promise<VisitStats | null> {
       .limit(50);
 
     if (totalError || uniqueError || googleError || pathError || recentError) {
-      console.error('Error fetching visit stats:', { totalError, uniqueError, googleError, pathError, recentError });
-      return null;
+      console.error('Error fetching visit stats:', { 
+        total: totalError?.message, 
+        unique: uniqueError?.message, 
+        google: googleError?.message, 
+        path: pathError?.message, 
+        recent: recentError?.message 
+      });
+      return {
+        totalVisits: 0,
+        uniqueIPs: 0,
+        googleReferrals: 0,
+        pageViews: [],
+        recentVisits: []
+      };
     }
 
     return {
