@@ -77,7 +77,7 @@ export default function LiveChat() {
   };
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end">
+    <div className="fixed bottom-6 right-24 z-50 flex flex-col items-end">
       {/* Sohbet Penceresi */}
       {isOpen && (
         <div className="mb-4 w-[350px] h-[500px] bg-white rounded-[2rem] shadow-2xl border border-slate-100 flex flex-col overflow-hidden animate-in slide-in-from-bottom-5 duration-300">
