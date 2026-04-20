@@ -38,7 +38,7 @@ export default function AdminChatPage() {
       .channel("admin_rooms_sync")
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "chat_rooms" },
+        { event: "*", schema: "public", table: "chat_sessions" },
         () => fetchRooms()
       )
       .subscribe();

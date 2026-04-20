@@ -95,7 +95,7 @@ export async function sendChatMessageAction(roomId: string, content: string, sen
   if (message && sender === 'visitor') {
     // Odadan kullanıcı bilgilerini alalım (Bildirim için)
     const { data: room } = await supabaseAdmin!
-      .from('chat_rooms')
+      .from('chat_sessions')
       .select('visitor_name, visitor_phone')
       .eq('id', roomId)
       .single();

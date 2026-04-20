@@ -229,7 +229,7 @@ export async function getOrCreateChatRoom(visitorId: string, name?: string, phon
   try {
     // Önce odayı ara
     const { data: existingRoom, error: fetchError } = await supabaseAdmin
-      .from('chat_rooms')
+      .from('chat_sessions')
       .select('*')
       .eq('visitor_id', visitorId)
       .single();
@@ -238,7 +238,7 @@ export async function getOrCreateChatRoom(visitorId: string, name?: string, phon
       // Eğer isim/telefon değiştiyse veya yeni girildiyse odayı güncelle
       if (name || phone) {
         const { data: updated } = await supabaseAdmin
-          .from('chat_rooms')
+          .from('chat_sessions')
           .update({ 
             visitor_name: name || existingRoom.visitor_name, 
             visitor_phone: phone || existingRoom.visitor_phone 
@@ -253,7 +253,7 @@ export async function getOrCreateChatRoom(visitorId: string, name?: string, phon
 
     // Yoksa oluştur
     const { data: newRoom, error: createError } = await supabaseAdmin
-      .from('chat_rooms')
+      .from('chat_sessions')
       .insert([{ 
         visitor_id: visitorId, 
         visitor_name: name || 'Anonim',
@@ -292,7 +292,7 @@ export async function sendMessage(roomId: string, content: string, sender: 'visi
 
     // Odayı güncelle (last_message ve updated_at)
     await supabaseAdmin
-      .from('chat_rooms')
+      .from('chat_sessions')
       .update({ last_message: content, updated_at: new Date().toISOString() })
       .eq('id', roomId);
 
@@ -330,7 +330,7 @@ export async function getActiveChatRooms(): Promise<ChatRoom[]> {
 
   try {
     const { data, error } = await supabaseAdmin
-      .from('chat_rooms')
+      .from('chat_sessions')
       .select('*')
       .order('updated_at', { ascending: false });
 
