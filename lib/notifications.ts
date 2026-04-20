@@ -53,5 +53,16 @@ export const notificationTemplates = {
 🌐 <b>Kaynak:</b> ${visitor.referer}
 📱 <b>Cihaz:</b> ${visitor.device}
 🔢 <b>IP:</b> ${visitor.ip}
+  `,
+
+  newChatMessage: (chat: { roomId: string, content: string, sender: string }) => `
+💬 <b>YENİ MESAJ (CANLI DESTEK)</b>
+
+📝 <b>Mesaj:</b> ${chat.content}
+👤 <b>Gönderen:</b> ${chat.sender}
+🆔 <b>Oda ID:</b> <code>${chat.roomId}</code>
+
+<i>Cevaplamak için admin panelini ziyaret edin.</i>
   `
 };
+

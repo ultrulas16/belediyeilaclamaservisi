@@ -82,4 +82,31 @@ export async function trackVisit(path: string, clientReferrer?: string) {
   }
 }
 
+// CHAT ACTIONS
+import { getOrCreateChatRoom, sendMessage, getChatMessages } from "@/lib/db";
+
+export async function getChatRoomAction(visitorId: string) {
+  return await getOrCreateChatRoom(visitorId);
+}
+
+export async function sendChatMessageAction(roomId: string, content: string, sender: 'visitor' | 'admin') {
+  const message = await sendMessage(roomId, content, sender);
+  
+  if (message && sender === 'visitor') {
+    // Ziyaretçi yazdığında admini uyar
+    await sendTelegramNotification(notificationTemplates.newChatMessage({
+      roomId,
+      content,
+      sender: "Ziyaretçi"
+    }));
+  }
+  
+  return message;
+}
+
+export async function getChatMessagesAction(roomId: string) {
+  return await getChatMessages(roomId);
+}
+
+
 

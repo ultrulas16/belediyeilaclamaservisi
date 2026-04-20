@@ -47,6 +47,22 @@ export interface VisitStats {
   recentVisits: Visit[];
 }
 
+export interface ChatRoom {
+  id: string;
+  visitor_id: string;
+  last_message: string;
+  updated_at: string;
+  created_at: string;
+}
+
+export interface Message {
+  id: number;
+  room_id: string;
+  content: string;
+  sender: 'visitor' | 'admin';
+  created_at: string;
+}
+
 export async function getLeads(): Promise<Lead[]> {
   if (!supabaseAdmin) {
     console.error('Admin Supabase client is not initialized. Check your SUPABASE_SERVICE_ROLE_KEY.');
@@ -203,4 +219,109 @@ export async function getVisitStats(): Promise<VisitStats | null> {
     return null;
   }
 }
+
+// CHAT FUNCTIONS
+export async function getOrCreateChatRoom(visitorId: string): Promise<ChatRoom | null> {
+  if (!supabaseAdmin) return null;
+
+  try {
+    // Önce odayı ara
+    const { data: existingRoom, error: fetchError } = await supabaseAdmin
+      .from('chat_rooms')
+      .select('*')
+      .eq('visitor_id', visitorId)
+      .single();
+
+    if (existingRoom) return existingRoom;
+
+    // Yoksa oluştur (RLS izinleri SQL'de verildi)
+    const { data: newRoom, error: createError } = await supabaseAdmin
+      .from('chat_rooms')
+      .insert([{ visitor_id: visitorId, last_message: 'Sohbet Başlatıldı' }])
+      .select()
+      .single();
+
+    if (createError) {
+      console.error('Error creating chat room:', createError);
+      return null;
+    }
+
+    return newRoom;
+  } catch (error) {
+    console.error('Error in getOrCreateChatRoom:', error);
+    return null;
+  }
+}
+
+export async function sendMessage(roomId: string, content: string, sender: 'visitor' | 'admin'): Promise<Message | null> {
+  if (!supabaseAdmin) return null;
+
+  try {
+    const { data: message, error } = await supabaseAdmin
+      .from('messages')
+      .insert([{ room_id: roomId, content, sender }])
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error sending message:', error);
+      return null;
+    }
+
+    // Odayı güncelle (last_message ve updated_at)
+    await supabaseAdmin
+      .from('chat_rooms')
+      .update({ last_message: content, updated_at: new Date().toISOString() })
+      .eq('id', roomId);
+
+    return message;
+  } catch (error) {
+    console.error('Error in sendMessage:', error);
+    return null;
+  }
+}
+
+export async function getChatMessages(roomId: string): Promise<Message[]> {
+  if (!supabaseAdmin) return [];
+
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('messages')
+      .select('*')
+      .eq('room_id', roomId)
+      .order('created_at', { ascending: true });
+
+    if (error) {
+      console.error('Error fetching chat messages:', error);
+      return [];
+    }
+
+    return data || [];
+  } catch (error) {
+    console.error('Error in getChatMessages:', error);
+    return [];
+  }
+}
+
+export async function getActiveChatRooms(): Promise<ChatRoom[]> {
+  if (!supabaseAdmin) return [];
+
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('chat_rooms')
+      .select('*')
+      .order('updated_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching chat rooms:', error);
+      return [];
+    }
+
+    return data || [];
+  } catch (error) {
+    console.error('Error in getActiveChatRooms:', error);
+    return [];
+  }
+}
+
 

@@ -8,6 +8,7 @@ import {
   Inbox, 
   FileText, 
   BarChart3,
+  MessageSquare,
   Settings, 
   LogOut, 
   Menu, 
@@ -26,8 +27,10 @@ export default function AdminLayout({
 
   const menuItems = [
     { title: "Genel Bakış", icon: LayoutDashboard, href: "/admin" },
+    { title: "Canlı Sohbet", icon: MessageSquare, href: "/admin/chat" },
     { title: "Analiz", icon: BarChart3, href: "/admin/analytics" },
     { title: "Gelen Talepler", icon: Inbox, href: "/admin/leads" },
+
     { title: "Blog Yönetimi", icon: FileText, href: "/admin/blog" },
     { title: "Ayarlar", icon: Settings, href: "/admin/settings" },
   ];
