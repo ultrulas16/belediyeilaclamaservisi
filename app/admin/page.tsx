@@ -9,10 +9,13 @@ import {
   ShieldCheck
 } from "lucide-react";
 import Link from "next/link";
-import { getLeads } from "@/lib/db";
+import { getLeads, getVisitStats } from "@/lib/db";
 
 export default async function AdminDashboard() {
-  const leads = await getLeads();
+  const [leads, visitStats] = await Promise.all([
+    getLeads(),
+    getVisitStats()
+  ]);
   
   // Calculate stats from real data
   const totalLeads = leads.length;
@@ -20,12 +23,16 @@ export default async function AdminDashboard() {
   const completedLeads = leads.filter(l => l.status === 'Tamamlandı').length;
   const conversionRate = totalLeads > 0 ? ((completedLeads / totalLeads) * 100).toFixed(1) : "0";
 
+  const totalVisits = visitStats?.totalVisits || 0;
+  const googleRatio = totalVisits > 0 ? ((visitStats!.googleReferrals / totalVisits) * 100).toFixed(1) : "0";
+
   const stats = [
     { title: "Toplam Talep", value: totalLeads.toString(), icon: Inbox, color: "bg-blue-500", trend: "+12%" },
-    { title: "Ziyaretçi", value: "2,845", icon: Users, color: "bg-purple-500", trend: "+5.4%" },
+    { title: "Ziyaretçi", value: totalVisits.toLocaleString(), icon: Users, color: "bg-purple-500", trend: "Canlı" },
     { title: "Dönüşüm Oranı", value: `%${conversionRate}`, icon: MousePointer2, color: "bg-green-500", trend: "+1.2%" },
-    { title: "Acil Aramalar", value: urgentLeads.toString(), icon: AlertCircle, color: "bg-red-500", trend: "+8%" },
+    { title: "Google Trafiği", value: `%${googleRatio}`, icon: AlertCircle, color: "bg-red-500", trend: "Arama" },
   ];
+
 
   const recentLeads = leads.slice(0, 5);
 
