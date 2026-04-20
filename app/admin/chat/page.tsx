@@ -13,7 +13,7 @@ import {
   Monitor
 } from "lucide-react";
 import { supabase, ChatRoom, Message } from "@/lib/db";
-import { getActiveChatRooms, getChatMessagesAction, sendChatMessageAction } from "@/app/actions";
+import { getActiveChatRoomsAction, getChatMessagesAction, sendChatMessageAction } from "@/app/actions";
 
 export default function AdminChatPage() {
   const [rooms, setRooms] = useState<ChatRoom[]>([]);
@@ -26,7 +26,7 @@ export default function AdminChatPage() {
   // 1. Odaları Yükle
   useEffect(() => {
     const fetchRooms = async () => {
-      const data = await getActiveChatRooms();
+      const data = await getActiveChatRoomsAction();
       setRooms(data || []);
       setIsLoading(false);
     };
@@ -68,7 +68,7 @@ export default function AdminChatPage() {
         },
         (payload) => {
           setMessages((prev) => [...prev, payload.new as Message]);
-          getActiveChatRooms().then(setRooms);
+          getActiveChatRoomsAction().then(setRooms);
         }
       )
       .subscribe();

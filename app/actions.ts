@@ -115,6 +115,10 @@ export async function getChatMessagesAction(roomId: string) {
   return await getChatMessages(roomId);
 }
 
+export async function getActiveChatRoomsAction() {
+  return await getActiveChatRooms();
+}
+
 
 
 
