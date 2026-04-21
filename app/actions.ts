@@ -68,15 +68,13 @@ export async function trackVisit(path: string, clientReferrer?: string) {
       user_agent: userAgent
     });
 
-    // Telegram Bildirimi Gönder (Sadece ana sayfa ve hizmet sayfaları için kafa karıştırmasın)
-    if (path === "/" || path.startsWith("/hizmetler")) {
-      await sendTelegramNotification(notificationTemplates.newVisitor({
-        ip,
-        path,
-        referer,
-        device
-      }));
-    }
+    // Telegram Bildirimi Gönder (TÜM ZİYARETÇİLER VE DETAYLI ANALİTİK)
+    await sendTelegramNotification(notificationTemplates.newVisitor({
+      ip,
+      path,
+      referer,
+      device
+    }));
   } catch (error) {
     console.error("Tracking error:", error);
   }

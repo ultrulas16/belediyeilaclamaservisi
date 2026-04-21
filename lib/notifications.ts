@@ -46,14 +46,19 @@ export const notificationTemplates = {
 <i>Hemen iletişime geçmek için admin panelini kontrol edin.</i>
   `,
   
-  newVisitor: (visitor: { ip: string, path: string, referer: string, device: string }) => `
-👀 <b>YENİ ZİYARETÇİ!</b>
+  newVisitor: (visitor: { ip: string, path: string, referer: string, device: string }) => {
+    const isGoogle = visitor.referer.toLowerCase().includes('google');
+    return `
+📊 <b>ZİYARETÇİ ANALİTİĞİ</b>
 
-📍 <b>Sayfa:</b> ${visitor.path}
-🌐 <b>Kaynak:</b> ${visitor.referer}
-📱 <b>Cihaz:</b> ${visitor.device}
-🔢 <b>IP:</b> ${visitor.ip}
-  `,
+📍 <b>İzlenen Sayfa:</b> <code>${visitor.path}</code>
+🔍 <b>Geliş Kaynağı:</b> ${isGoogle ? '🔎 Google Arama' : visitor.referer}
+📱 <b>Cihaz Tipi:</b> ${visitor.device}
+🔢 <b>Ziyaretçi IP:</b> <code>${visitor.ip}</code>
+
+🕒 <i>Tarih: ${new Date().toLocaleString('tr-TR')}</i>
+    `;
+  },
 
   newChatMessage: (chat: { roomId: string, content: string, sender: string }) => `
 💬 <b>YENİ MESAJ (CANLI DESTEK)</b>
