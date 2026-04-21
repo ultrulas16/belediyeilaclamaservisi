@@ -210,10 +210,13 @@ export async function sendMessage(message: Omit<ChatMessage, 'id' | 'created_at'
 
     return data;
   } catch (error) {
-    console.error('Error in sendChatMessage:', error);
+    console.error('Error in sendMessage:', error);
     return null;
   }
 }
+
+// Geriye dönük uyumluluk için takma isimler (Alias)
+export const sendChatMessage = sendMessage;
 
 export async function getOrCreateChatRoom(session_id: string, full_name?: string, phone?: string): Promise<ChatSession | null> {
   if (!supabase) return null;
