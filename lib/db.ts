@@ -243,7 +243,7 @@ export async function upsertChatSession(session: Omit<ChatSession, 'id' | 'creat
   }
 }
 
-export async function getAllChatSessions(): Promise<{ session_id: string, last_message: string, created_at: string, user?: ChatSession }[]> {
+export async function getActiveChatRooms(): Promise<{ session_id: string, last_message: string, created_at: string, user?: ChatSession }[]> {
     if (!supabase) return [];
     
     try {
