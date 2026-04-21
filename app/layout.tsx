@@ -55,10 +55,15 @@ export default function RootLayout({
     <html lang="tr" className="scroll-smooth">
       <body className={inter.className}>
         <JsonLd />
-        {children}
+        <Header />
+        <main className="min-h-screen">
+          {children}
+        </main>
+        <Footer />
         <LiveChat />
         <CookieBanner />
         <VisitorTracker />
+        <WhatsAppFAB />
       </body>
     </html>
   );
