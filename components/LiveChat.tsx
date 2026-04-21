@@ -1,274 +1,279 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { MessageCircle, X, Send, User, ShieldCheck, CheckSquare, Square } from "lucide-react";
-import { supabase } from "@/lib/db";
-import { getChatRoomAction, sendChatMessageAction, getChatMessagesAction } from "@/app/actions";
+import { 
+  MessageCircle, 
+  X, 
+  Send, 
+  ShieldAlert, 
+  Zap, 
+  User,
+  History
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { getChatMessages, sendChatMessage, ChatMessage, upsertChatSession, supabase } from "@/lib/db";
 
 export default function LiveChat() {
   const [isOpen, setIsOpen] = useState(false);
-  const [step, setStep] = useState<"entry" | "chat">("entry");
-  const [messages, setMessages] = useState<any[]>([]);
-  const [inputValue, setInputValue] = useState("");
-  const [roomId, setRoomId] = useState<string | null>(null);
-  const [visitorId, setVisitorId] = useState<string | null>(null);
-  
-  // Form States
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [kvkkAccepted, setKvkkAccepted] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [isAccepted, setIsAccepted] = useState(false);
+  const [checkboxes, setCheckboxes] = useState({ kvkk: false, privacy: false });
+  const [userData, setUserData] = useState({ name: "", phone: "" });
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // 1. Ziyaretçi Kimliği ve Mevcut Oda Kontrolü
+  // Initialize Session & Consent
   useEffect(() => {
-    let sid = localStorage.getItem("chat_session_id");
-    const savedName = localStorage.getItem("chat_full_name");
-    
-    if (!sid) {
-      sid = "sess_" + Math.random().toString(36).substring(7);
-      localStorage.setItem("chat_session_id", sid);
+    let sId = localStorage.getItem("chat_session_id");
+    if (!sId) {
+      sId = Math.random().toString(36).substring(7);
+      localStorage.setItem("chat_session_id", sId);
     }
-    setVisitorId(sid);
+    setSessionId(sId);
 
-    const initChat = async () => {
-      if (savedName) {
-        const room = await getChatRoomAction(sid!);
-        if (room) {
-          setRoomId(room.session_id);
-          const existingMessages = await getChatMessagesAction(room.session_id);
-          setMessages(existingMessages);
-          setStep("chat");
-        }
-      }
-    };
-    initChat();
+    const accepted = localStorage.getItem("chat_terms_accepted") === "true";
+    setIsAccepted(accepted);
   }, []);
 
-  // 2. Realtime Bağlantısı
+  const handleAccept = async () => {
+    if (!sessionId) return;
+    
+    setLoading(true);
+
+    // Save contact info formally
+    await upsertChatSession({
+      session_id: sessionId,
+      full_name: userData.name,
+      phone: userData.phone
+    });
+
+    // Send a system message with contact details for backward compatibility/quick view
+    await sendChatMessage({
+      session_id: sessionId,
+      sender: 'user',
+      content: `[SİSTEM] Yeni Bağlantı: ${userData.name} - Tel: ${userData.phone}`
+    });
+
+    localStorage.setItem("chat_terms_accepted", "true");
+    setIsAccepted(true);
+    setLoading(false);
+  };
+
+  // Fetch History & Subscribe
   useEffect(() => {
-    if (!roomId || !supabase) return;
+    if (!sessionId || !supabase) return;
+
+    const fetchHistory = async () => {
+      const history = await getChatMessages(sessionId);
+      setMessages(history);
+    };
+    fetchHistory();
 
     const channel = supabase
-      .channel(`room_${roomId}`)
+      .channel(`chat:${sessionId}`)
       .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "messages",
-          filter: `room_id=eq.${roomId}`,
-        },
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'messages', filter: `session_id=eq.${sessionId}` },
         (payload) => {
-          setMessages((prev) => {
-            if (prev.find(m => m.id === payload.new.id)) return prev;
-            return [...prev, payload.new];
+          setMessages(prev => {
+            if (prev.some(m => m.id === (payload.new as ChatMessage).id)) return prev;
+            return [...prev, payload.new as ChatMessage];
           });
         }
       )
       .subscribe();
 
     return () => {
-      supabase?.removeChannel(channel);
+      if (supabase) {
+        supabase.removeChannel(channel);
+      }
     };
-  }, [roomId]);
+  }, [sessionId]);
 
-  // 3. Otomatik Scroll
+  // Scroll to bottom
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages, isOpen, step]);
+  }, [messages, isOpen]);
 
-  // 4. Sohbete Başla (Form Gönderimi)
-  const handleStartChat = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!name || !phone || !kvkkAccepted || isSubmitting) return;
-
-    setIsSubmitting(true);
-    try {
-      const room = await getChatRoomAction(visitorId!, name, phone);
-      if (room) {
-        setRoomId(room.session_id);
-        localStorage.setItem("chat_full_name", name);
-        setStep("chat");
-        
-        await sendChatMessageAction(room.session_id, "Merhaba, size nasıl yardımcı olabilirim?", "admin");
-      }
-    } catch (error) {
-      console.error("Chat init error:", error);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-
-  // 5. Mesaj Gönder
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inputValue.trim() || !roomId) return;
+    if (!input.trim() || !sessionId || loading) return;
 
-    const content = inputValue.trim();
-    setInputValue("");
-    
-    // Geçici olarak listeye ekle (Hız algısı için)
-    const tempMsg = { 
-      id: Math.random(), 
-      content, 
-      sender: "visitor", 
-      created_at: new Date().toISOString() 
-    };
-    setMessages(prev => [...prev, tempMsg]);
+    setLoading(true);
+    const content = input;
+    setInput("");
 
-    try {
-      await sendChatMessageAction(roomId, content, "visitor");
-    } catch (error) {
-      console.error("Send error:", error);
-      // Hata durumunda mesajın yanına ünlem konulabilir
+    const result = await sendChatMessage({
+      session_id: sessionId,
+      sender: 'user',
+      content
+    });
+
+    if (!result) {
+       alert("Mesaj gönderilemedi.");
+       setInput(content);
     }
+    setLoading(false);
   };
 
   return (
-    <div className="fixed bottom-6 right-24 z-50 flex flex-col items-end">
-      {/* Sohbet Penceresi */}
+    <div className="fixed bottom-10 left-10 z-[60] flex flex-col items-start pointer-events-none">
+      {/* Chat Window */}
       {isOpen && (
-        <div className="mb-4 w-[350px] h-[550px] bg-white rounded-[2.5rem] shadow-2xl border border-slate-100 flex flex-col overflow-hidden animate-in slide-in-from-bottom-5 duration-300">
-          {/* Header */}
-          <div className="bg-slate-900 p-6 text-white flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-blue-600 rounded-2xl flex items-center justify-center shadow-lg">
-                <ShieldCheck size={20} />
-              </div>
-              <div>
-                <h4 className="font-black text-sm uppercase tracking-tighter">Canlı Destek</h4>
-                <p className="text-[10px] text-blue-300 font-bold uppercase tracking-widest">Çevrimiçi</p>
-              </div>
-            </div>
-            <button 
-              onClick={() => setIsOpen(false)}
-              className="p-2 hover:bg-white/10 rounded-xl transition-colors"
-            >
-              <X size={20} />
-            </button>
-          </div>
-
-          {step === "entry" ? (
-            /* Giriş Formu */
-            <div className="flex-grow p-8 bg-slate-50 flex flex-col overflow-y-auto">
-              <div className="mb-8 text-center">
-                <h3 className="text-xl font-black text-slate-800 mb-2">Hoş Geldiniz!</h3>
-                <p className="text-xs text-slate-500 font-bold">Lütfen başlamadan önce bilgilerinizi girin.</p>
-              </div>
-
-              <form onSubmit={handleStartChat} className="space-y-4">
-                <div>
-                  <label className="text-[10px] uppercase font-black text-slate-400 mb-1 block px-2">Ad Soyad</label>
-                  <input 
-                    required
-                    type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="Adınız Soyadınız"
-                    className="w-full bg-white border border-slate-200 rounded-2xl px-5 py-4 text-sm font-bold text-slate-900 focus:ring-2 focus:ring-blue-600 transition-all outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="text-[10px] uppercase font-black text-slate-400 mb-1 block px-2">Telefon</label>
-                  <input 
-                    required
-                    type="tel"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder="05xx xxx xx xx"
-                    className="w-full bg-white border border-slate-200 rounded-2xl px-5 py-4 text-sm font-bold text-slate-900 focus:ring-2 focus:ring-blue-600 transition-all outline-none"
-                  />
-                </div>
-                
-                <div 
-                  className="flex gap-3 items-start p-2 cursor-pointer group"
-                  onClick={() => setKvkkAccepted(!kvkkAccepted)}
-                >
-                  <div className="mt-1 flex-shrink-0">
-                    {kvkkAccepted ? <CheckSquare className="text-blue-600" size={18} /> : <Square className="text-slate-300" size={18} />}
-                  </div>
-                  <p className="text-[10px] font-bold text-slate-500 leading-relaxed">
-                    <span className="text-slate-800 underline">KVKK ve Gizlilik Sözleşmesi</span>'ni okudum, iletişim bilgilerimin işlenmesini kabul ediyorum.
-                  </p>
-                </div>
-
-                <button 
-                  type="submit"
-                  disabled={!kvkkAccepted || !name || !phone || isSubmitting}
-                  className="w-full bg-blue-600 text-white font-black py-4 rounded-2xl shadow-lg hover:bg-blue-700 transition-all active:scale-95 disabled:opacity-50 disabled:grayscale"
-                >
-                  {isSubmitting ? "Hazırlanıyor..." : "Sohbete Başla"}
-                </button>
-              </form>
-            </div>
-          ) : (
-            /* Sohbet Alanı */
-            <>
-              <div 
-                ref={scrollRef}
-                className="flex-grow p-6 overflow-y-auto space-y-4 bg-slate-50/50"
-              >
-                {messages.map((msg, i) => (
-                  <div 
-                    key={i} 
-                    className={`flex flex-col ${msg.sender === "visitor" ? "items-end" : "items-start"}`}
-                  >
-                    <div 
-                      className={`max-w-[80%] p-4 rounded-2xl text-sm font-medium shadow-sm ${
-                        msg.sender === "visitor" 
-                          ? "bg-slate-900 text-white rounded-tr-none" 
-                          : "bg-white text-slate-700 border border-slate-100 rounded-tl-none"
-                      }`}
-                    >
-                      {msg.content}
+        <div className="w-[380px] h-[550px] bg-white border-8 border-safety-charcoal mb-6 flex flex-col shadow-[24px_24px_0px_rgba(18,18,18,0.2)] pointer-events-auto animate-safety-slide">
+           {/* Header */}
+           <div className="bg-safety-charcoal p-6 flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                 <div className="bg-safety-yellow p-2 text-safety-charcoal">
+                    <ShieldAlert size={20} strokeWidth={3} />
+                 </div>
+                 <div className="space-y-1">
+                    <div className="text-white font-black text-xs uppercase italic tracking-tighter">CANLI DESTEK</div>
+                    <div className="flex items-center gap-1.5 text-[9px] font-black uppercase text-emerald-500">
+                       <div className="h-1.5 w-1.5 bg-emerald-500 rounded-full animate-pulse"></div>
+                       SİSTEM ÇEVRİMİÇİ
                     </div>
-                    <span className="text-[9px] text-slate-400 font-bold mt-1 uppercase">
-                      {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                  </div>
-                ))}
+                 </div>
               </div>
+              <button onClick={() => setIsOpen(false)} className="text-white/40 hover:text-white transition-colors">
+                 <X size={24} />
+              </button>
+           </div>
 
-              {/* Input Area */}
-              <form onSubmit={handleSend} className="p-4 bg-white border-t border-slate-100 flex gap-2">
-                <input 
-                  type="text"
-                  value={inputValue}
-                  onChange={(e) => setInputValue(e.target.value)}
-                  placeholder="Bir mesaj yazın..."
-                  className="flex-grow bg-slate-100 border-none rounded-2xl px-4 py-3 text-sm font-bold text-slate-900 focus:ring-2 focus:ring-blue-600 transition-all placeholder:text-slate-400"
-                />
+           {/* Chat Content or Consent */}
+           {!isAccepted ? (
+             <div className="flex-1 p-8 flex flex-col justify-center space-y-6 bg-safety-slate overflow-y-auto">
+                <div className="space-y-4">
+                   <Zap size={32} className="text-safety-yellow fill-safety-yellow" />
+                   <h3 className="text-2xl font-black italic uppercase tracking-tighter leading-none text-safety-charcoal">
+                      CANLI DESTEK <br/> BAŞVURUSU
+                   </h3>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-black uppercase text-safety-charcoal/40">AD SOYAD</label>
+                    <input 
+                      type="text"
+                      placeholder="ADINIZI GİRİNİZ..."
+                      value={userData.name}
+                      onChange={(e) => setUserData({...userData, name: e.target.value})}
+                      className="w-full bg-white border-2 border-safety-charcoal px-4 py-3 outline-none font-black text-xs uppercase italic focus:bg-safety-yellow/10"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-black uppercase text-safety-charcoal/40">TELEFON NUMARASI</label>
+                    <input 
+                      type="tel"
+                      placeholder="05XX XXX XX XX"
+                      value={userData.phone}
+                      onChange={(e) => setUserData({...userData, phone: e.target.value})}
+                      className="w-full bg-white border-2 border-safety-charcoal px-4 py-3 outline-none font-black text-xs uppercase italic focus:bg-safety-yellow/10"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                   <label className="flex items-start gap-4 cursor-pointer group">
+                      <input 
+                         type="checkbox" 
+                         checked={checkboxes.kvkk}
+                         onChange={(e) => setCheckboxes({...checkboxes, kvkk: e.target.checked})}
+                         className="mt-1 h-4 w-4 border-2 border-safety-charcoal rounded-none accent-safety-charcoal flex-shrink-0"
+                      />
+                      <span className="text-[9px] font-black uppercase italic tracking-tight text-safety-charcoal group-hover:text-black transition-colors">
+                         KVKK Aydınlatma Metni'ni onaylıyorum.
+                      </span>
+                   </label>
+                   <label className="flex items-start gap-4 cursor-pointer group">
+                      <input 
+                         type="checkbox" 
+                         checked={checkboxes.privacy}
+                         onChange={(e) => setCheckboxes({...checkboxes, privacy: e.target.checked})}
+                         className="mt-1 h-4 w-4 border-2 border-safety-charcoal rounded-none accent-safety-charcoal flex-shrink-0"
+                      />
+                      <span className="text-[9px] font-black uppercase italic tracking-tight text-safety-charcoal group-hover:text-black transition-colors">
+                         Gizlilik Sözleşmesi'ni kabul ediyorum.
+                      </span>
+                   </label>
+                </div>
+
                 <button 
-                  type="submit"
-                  disabled={!inputValue.trim() || !roomId}
-                  className="bg-blue-600 text-white p-3 rounded-2xl hover:bg-blue-700 transition-all shadow-lg active:scale-95 disabled:opacity-50 disabled:scale-100"
+                   disabled={!checkboxes.kvkk || !checkboxes.privacy || !userData.name.trim() || !userData.phone.trim() || loading}
+                   onClick={handleAccept}
+                   className="btn-safety-primary w-full disabled:opacity-30 disabled:grayscale italic"
                 >
-                  <Send size={20} />
+                   {loading ? "BAĞLANTI KURULUYOR..." : "SOHBETE BAŞLA"}
                 </button>
-              </form>
-            </>
-          )}
+             </div>
+           ) : (
+             <>
+               {/* Messages */}
+               <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 space-y-6 bg-safety-slate scroll-smooth">
+                  <div className="bg-safety-charcoal/5 p-4 text-[10px] font-black uppercase text-center tracking-widest text-safety-charcoal/40 border border-dashed border-safety-charcoal/20">
+                     GÜVENLİ HAT KURULDU — MESAJ GÖNDEREBİLİRSİNİZ
+                  </div>
+
+                  {messages.map((msg, i) => (
+                    <div key={i} className={cn(
+                      "flex flex-col max-w-[85%]",
+                      msg.sender === 'user' ? "ml-auto items-end" : "mr-auto items-start"
+                    )}>
+                      <div className={cn(
+                        "p-4 font-bold text-sm border-2",
+                        msg.sender === 'user' 
+                          ? "bg-safety-charcoal text-white border-safety-charcoal" 
+                          : "bg-white text-safety-charcoal border-safety-charcoal shadow-[4px_4px_0px_rgba(18,18,18,0.1)]"
+                      )}>
+                        {msg.content}
+                      </div>
+                      <span className="text-[9px] font-black text-safety-charcoal/30 mt-2 uppercase tracking-tighter">
+                         {msg.sender === 'user' ? 'VATANDAŞ' : 'ADMİN'} • {new Date(msg.created_at).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+                  ))}
+               </div>
+
+               {/* Input */}
+               <form onSubmit={handleSend} className="p-6 bg-white border-t-4 border-safety-charcoal flex gap-4">
+                  <input 
+                     value={input}
+                     onChange={(e) => setInput(e.target.value)}
+                     placeholder="BİR MESAJ YAZIN..."
+                     className="flex-1 bg-safety-slate border-2 border-safety-charcoal px-4 py-3 outline-none focus:bg-white transition-all font-black text-xs uppercase italic"
+                  />
+                  <button 
+                     type="submit" 
+                     disabled={!input.trim() || loading}
+                     className="bg-safety-charcoal text-safety-yellow p-4 border-2 border-safety-charcoal hover:bg-black transition-colors disabled:opacity-50"
+                  >
+                     <Send size={20} strokeWidth={3} />
+                  </button>
+               </form>
+             </>
+           )}
         </div>
       )}
 
-      {/* Floating Toggle Button */}
+      {/* Toggle Button */}
       <button 
         onClick={() => setIsOpen(!isOpen)}
-        className="group bg-slate-900 text-white p-4 rounded-[2rem] shadow-2xl hover:bg-blue-600 transition-all duration-300 flex items-center gap-3 overflow-hidden"
+        className={cn(
+          "h-20 w-20 bg-safety-charcoal text-safety-yellow flex items-center justify-center border-4 border-safety-yellow shadow-[12px_12px_0px_rgba(18,18,18,0.1)] hover:translate-x-1 hover:translate-y-1 hover:shadow-none transition-all pointer-events-auto relative group",
+          isOpen && "rotate-90 bg-safety-yellow text-safety-charcoal border-safety-charcoal"
+        )}
       >
-        <div className="relative">
-          <MessageCircle size={28} className={isOpen ? "scale-0 opacity-0 absolute" : "scale-100 opacity-100 transition-all duration-300"} />
-          <X size={28} className={isOpen ? "scale-100 opacity-100 transition-all duration-300" : "scale-0 opacity-0 absolute"} />
-        </div>
+        {isOpen ? <X size={32} strokeWidth={3} /> : <MessageCircle size={32} strokeWidth={3} />}
+        
+        {/* Helper Badge */}
         {!isOpen && (
-          <span className="max-w-0 group-hover:max-w-xs transition-all duration-500 font-bold text-sm uppercase tracking-tighter whitespace-nowrap opacity-0 group-hover:opacity-100">
-            Destek Ekibi
-          </span>
+          <div className="absolute left-full ml-6 bg-safety-charcoal text-white px-4 py-2 font-black text-[10px] uppercase tracking-widest whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity border-l-4 border-safety-yellow">
+             ACİL MÜDAHALE HATTI
+          </div>
         )}
       </button>
     </div>

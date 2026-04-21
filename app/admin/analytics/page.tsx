@@ -1,161 +1,208 @@
-import React from "react";
+"use client";
+
+import React, { useState, useEffect } from "react";
 import { 
   BarChart3, 
   Users, 
+  MapPin, 
   Globe, 
   Search, 
-  Clock, 
-  ArrowUpRight, 
-  MousePointer2,
-  Navigation
+  RefreshCw,
+  Clock,
+  Zap,
+  ShieldAlert,
+  ArrowRight,
+  Smartphone,
+  Monitor,
+  Tablet,
+  Layout
 } from "lucide-react";
-import { getVisitStats } from "@/lib/db";
+import { getAnalyticsSummary } from "@/lib/db";
+import { cn } from "@/lib/utils";
 
-export default async function AnalyticsPage() {
-  const stats = await getVisitStats();
+export default function AnalyticsPage() {
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
-  if (!stats) {
+  const fetchData = async () => {
+    setLoading(true);
+    const summary = await getAnalyticsSummary();
+    setData(summary);
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  if (loading && !data) {
     return (
-      <div className="p-8 text-center text-slate-500">
-        Analiz verileri yüklenemedi. Supabase bağlantısını kontrol edin.
+      <div className="flex flex-col items-center justify-center h-96 space-y-4 opacity-50 bg-white border-4 border-safety-charcoal border-dashed">
+         <RefreshCw size={48} className="animate-spin text-safety-charcoal" />
+         <div className="font-black uppercase tracking-widest text-[10px]">ANALİZ VERİLERİ ÇEKİLİYOR...</div>
       </div>
     );
   }
 
-  const cards = [
-    { title: "Toplam Sayfa Görüntüleme", value: stats.totalVisits.toLocaleString(), icon: MousePointer2, color: "bg-blue-500" },
-    { title: "Tekil Ziyaretçi", value: stats.uniqueIPs.toLocaleString(), icon: Users, color: "bg-purple-500" },
-    { title: "Google'dan Gelenler", value: stats.googleReferrals.toLocaleString(), icon: Search, color: "bg-green-500" },
-    { title: "Google Trafik Oranı", value: `%${stats.totalVisits > 0 ? ((stats.googleReferrals / stats.totalVisits) * 100).toFixed(1) : 0}`, icon: Globe, color: "bg-orange-500" },
-  ];
-
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
-      <div className="flex items-center justify-between">
-        <h2 className="text-3xl font-black text-slate-900 tracking-tight">Trafik Analizi</h2>
-        <div className="bg-white px-4 py-2 rounded-xl shadow-sm border border-slate-100 flex items-center gap-2 text-sm font-bold text-slate-500">
-          <Clock size={16} />
-          <span>Anlık Canlı Veri</span>
-        </div>
-      </div>
-
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {cards.map((card, i) => (
-          <div key={i} className="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 relative overflow-hidden group hover:shadow-md transition-all">
-            <div className={`absolute top-0 right-0 w-24 h-24 ${card.color} opacity-[0.03] rounded-full -translate-y-1/2 translate-x-1/2`}></div>
-            <div className="flex items-center gap-4 mb-4">
-              <div className={`${card.color} p-3 rounded-2xl text-white shadow-lg`}>
-                <card.icon size={20} />
-              </div>
-              <span className="text-xs font-black text-slate-400 uppercase tracking-widest">{card.title}</span>
+    <div className="space-y-12">
+      {/* Stats Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        {[
+          { label: "TOPLAM HİT", value: data?.total || 0, icon: BarChart3, color: "bg-safety-charcoal text-safety-yellow" },
+          { label: "TEKİL ZİYARETÇİ (IP)", value: data?.uniqueIps || 0, icon: Users, color: "bg-safety-yellow text-safety-charcoal" },
+          { label: "GOOGLE TRAFİĞİ", value: data?.googleTraffic || 0, icon: Search, color: "bg-white text-safety-charcoal" }
+        ].map((stat, i) => (
+          <div key={i} className={cn(
+            "p-10 border-4 border-safety-charcoal flex flex-col gap-6 shadow-[12px_12px_0px_rgba(18,18,18,1)]",
+            stat.color
+          )}>
+            <div className="flex items-center justify-between">
+              <stat.icon size={32} strokeWidth={3} />
+              <div className="h-4 w-4 bg-safety-charcoal/10 rounded-full"></div>
             </div>
-            <h3 className="text-3xl font-black text-slate-900">{card.value}</h3>
+            <div className="space-y-1">
+              <div className="text-[10px] font-black uppercase tracking-widest opacity-60 italic">{stat.label}</div>
+              <div className="text-6xl font-black italic tracking-tighter leading-none">{stat.value}</div>
+            </div>
           </div>
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Popular Pages */}
-        <div className="lg:col-span-3 bg-white rounded-[2rem] shadow-sm border border-slate-100 overflow-hidden">
-          <div className="p-8 border-b flex items-center justify-between bg-slate-50/50">
-            <div className="flex items-center gap-3">
-              <Navigation className="text-blue-600" size={24} />
-              <h3 className="font-black text-slate-800 text-lg uppercase tracking-tight">En Çok Ziyaret Edilen Sayfalar</h3>
-            </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Top Pages */}
+        <div className="border-4 border-safety-charcoal bg-white shadow-[12px_12px_0px_rgba(18,18,18,0.1)]">
+          <div className="p-6 border-b-4 border-safety-charcoal bg-safety-slate flex items-center gap-3">
+            <Layout size={20} className="text-safety-charcoal" />
+            <h3 className="font-black italic uppercase tracking-tighter text-safety-charcoal">EN ÇOK TIKLANAN SAYFALAR</h3>
           </div>
-          <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-            {stats.pageViews.slice(0, 10).map((pv, i) => (
-              <div key={i} className="flex items-center p-4 rounded-2xl bg-slate-50 hover:bg-slate-100 transition-colors group">
-                <span className="w-8 text-slate-300 font-bold italic text-lg">{i + 1}</span>
-                <div className="flex-grow">
-                  <p className="text-sm font-bold text-slate-700">{pv.path}</p>
-                  <div className="w-full bg-white h-1.5 rounded-full mt-2 overflow-hidden">
-                    <div 
-                      className="bg-blue-600 h-full rounded-full transition-all duration-1000"
-                      style={{ width: `${(pv.count / stats.totalVisits) * 100}%` }}
-                    ></div>
-                  </div>
+          <div className="p-6 space-y-6">
+            {data?.topPages.map((page: any, i: number) => (
+              <div key={i} className="space-y-2">
+                <div className="flex justify-between items-end">
+                  <span className="text-xs font-black uppercase italic tracking-tight text-safety-charcoal truncate max-w-[70%]">{page.path}</span>
+                  <span className="text-[10px] font-black text-safety-charcoal/40">{page.count} HİT</span>
                 </div>
-                <div className="ml-6 text-right">
-                  <span className="text-lg font-black text-slate-900">{pv.count}</span>
+                <div className="h-4 bg-safety-slate border-2 border-safety-charcoal relative overflow-hidden">
+                  <div 
+                    className="absolute top-0 left-0 h-full bg-safety-yellow border-r-2 border-safety-charcoal"
+                    style={{ width: `${(page.count / data.total) * 100}%` }}
+                  ></div>
                 </div>
               </div>
             ))}
           </div>
         </div>
-      </div>
 
-      {/* Full Width Live Traffic Log */}
-      <div className="bg-slate-900 text-white rounded-[3rem] shadow-2xl p-8 relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-blue-600 opacity-10 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl"></div>
-        
-        <div className="relative z-10">
-          <div className="flex items-center justify-between mb-10">
-            <div className="flex items-center gap-3">
-              <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
-              <h3 className="font-black text-xl uppercase tracking-widest">Detaylı Canlı Akış</h3>
-            </div>
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Son 50 Etkinlik</span>
+        {/* Device Distribution */}
+        <div className="border-4 border-safety-charcoal bg-white shadow-[12px_12px_0px_rgba(18,18,18,0.1)]">
+          <div className="p-6 border-b-4 border-safety-charcoal bg-safety-slate flex items-center gap-3">
+            <Smartphone size={20} className="text-safety-charcoal" />
+            <h3 className="font-black italic uppercase tracking-tighter text-safety-charcoal">CİHAZ DAĞILIMI</h3>
           </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-separate border-spacing-y-3">
-              <thead>
-                <tr className="text-[10px] text-slate-500 font-black uppercase tracking-[0.2em]">
-                  <th className="px-6 pb-4">Zaman / IP</th>
-                  <th className="px-6 pb-4">Ziyaret Edilen Sayfa</th>
-                  <th className="px-6 pb-4">Cihaz & Kaynak</th>
-                </tr>
-              </thead>
-              <tbody>
-                {stats.recentVisits.map((visit, i) => {
-                  const ua = visit.user_agent;
-                  let device = "Bilinmeyen";
-                  if (ua.includes("iPhone")) device = "📱 iPhone";
-                  else if (ua.includes("Android")) device = "📱 Android";
-                  else if (ua.includes("Windows")) device = "💻 Windows";
-                  else if (ua.includes("Macintosh")) device = "💻 Mac";
-                  
-                  let browser = "";
-                  if (ua.includes("Chrome")) browser = "Chrome";
-                  else if (ua.includes("Safari") && !ua.includes("Chrome")) browser = "Safari";
-                  else if (ua.includes("Firefox")) browser = "Firefox";
-                  else if (ua.includes("Edg")) browser = "Edge";
-
-                  return (
-                    <tr key={i} className="group bg-white/5 hover:bg-white/10 transition-colors rounded-2xl">
-                      <td className="px-6 py-4 rounded-l-2xl">
-                        <div className="flex flex-col">
-                          <span className="text-blue-400 font-black text-xs tracking-tight">{visit.ip}</span>
-                          <span className="text-[10px] text-slate-500 font-bold">{new Date(visit.created_at).toLocaleTimeString()}</span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="text-sm font-bold text-slate-200">{visit.path}</span>
-                      </td>
-                      <td className="px-6 py-4 rounded-r-2xl">
-                        <div className="flex flex-col gap-1">
-                          <div className="flex items-center gap-2">
-                            <span className="text-[10px] font-black text-slate-300 uppercase">{device}</span>
-                            <span className="text-[9px] text-slate-500 font-medium">({browser})</span>
-                          </div>
-                          <p className="text-[10px] text-blue-400 font-medium truncate max-w-[200px]">
-                            {visit.referer.includes("google") ? "🔎 Google Arama" : 
-                             visit.referer.includes("localhost") ? "🛠️ Yerel (Dev)" :
-                             visit.referer === "Direkt Giriş" ? "🔗 Direkt" : visit.referer}
-                          </p>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+          <div className="p-8 flex flex-col justify-center h-full space-y-8">
+            {[
+              { label: "DESKTOP", value: data?.deviceStats.desktop, icon: Monitor },
+              { label: "MOBILE", value: data?.deviceStats.mobile, icon: Smartphone },
+              { label: "TABLET", value: data?.deviceStats.tablet, icon: Tablet }
+            ].map((device, i) => {
+              const percentage = data?.total > 0 ? Math.round((device.value / data.total) * 100) : 0;
+              return (
+                <div key={i} className="flex items-center gap-6">
+                  <div className="bg-safety-charcoal text-safety-yellow p-4 border-2 border-safety-charcoal">
+                    <device.icon size={24} />
+                  </div>
+                  <div className="flex-1 space-y-1">
+                    <div className="flex justify-between transition-all">
+                      <span className="text-[10px] font-black uppercase tracking-widest">{device.label}</span>
+                      <span className="text-xl font-black italic">{percentage}%</span>
+                    </div>
+                    <div className="h-3 bg-safety-slate border border-safety-charcoal relative">
+                      <div 
+                        className="absolute top-0 left-0 h-full bg-safety-charcoal transition-all duration-1000"
+                        style={{ width: `${percentage}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>
 
+      {/* Traffic Log Section */}
+      <div className="border-4 border-safety-charcoal bg-white shadow-[16px_16px_0px_rgba(18,18,18,0.2)]">
+        <div className="p-8 border-b-4 border-safety-charcoal flex items-center justify-between bg-safety-slate">
+           <div className="flex items-center gap-4">
+              <div className="p-2 bg-safety-charcoal text-safety-yellow">
+                 <ShieldAlert size={20} strokeWidth={3} />
+              </div>
+              <h3 className="text-xl font-black italic uppercase tracking-tighter text-safety-charcoal">SON ZİYARET TRAFİĞİ</h3>
+           </div>
+           <button onClick={fetchData} className="btn-safety-primary !px-4 !py-2 !text-[10px]">
+              YENİLE
+           </button>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-left">
+            <thead>
+              <tr className="bg-safety-charcoal text-white text-[10px] font-black uppercase tracking-widest italic">
+                <th className="p-6">IP ADRESİ</th>
+                <th className="p-6">GELDİĞİ YER (REFERRER)</th>
+                <th className="p-6">İNCELENEN SAYFA</th>
+                <th className="p-6">TARİH / SAAT</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y-2 divide-safety-charcoal/10">
+              {data?.recent.map((visit: any, i: number) => (
+                <tr key={i} className="hover:bg-safety-slate/50 transition-colors group">
+                  <td className="p-6 font-black text-sm text-safety-charcoal/80 flex items-center gap-3">
+                     <Globe size={14} className="text-safety-yellow" />
+                     {visit.ip}
+                  </td>
+                  <td className="p-6">
+                     <span className={cn(
+                        "text-[10px] font-black px-3 py-1 uppercase italic",
+                        visit.referrer.includes('google') ? "bg-emerald-500 text-white" : "bg-safety-charcoal/5 text-safety-charcoal/40"
+                     )}>
+                        {visit.referrer}
+                     </span>
+                  </td>
+                  <td className="p-6 font-black text-xs uppercase italic text-safety-charcoal underline underline-offset-4 decoration-safety-yellow decoration-4">
+                     {visit.path}
+                  </td>
+                  <td className="p-6 font-black text-[10px] text-safety-charcoal/30 flex items-center gap-2">
+                     <Clock size={12} />
+                     {new Date(visit.created_at).toLocaleString('tr-TR')}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        
+        {data?.recent.length === 0 && (
+           <div className="p-20 text-center text-safety-charcoal/20 font-black uppercase italic tracking-widest">
+              GÖSTERİLECEK VERİ BULUNAMADI
+           </div>
+        )}
+      </div>
+
+      {/* Footer Note */}
+      <div className="bg-safety-charcoal p-8 text-white flex items-center justify-between">
+         <div className="flex items-center gap-6">
+            <Zap size={32} className="text-safety-yellow fill-safety-yellow" />
+            <div className="space-y-1">
+               <div className="text-[10px] font-black uppercase tracking-widest text-white/30 italic">ANALİZ NOTU</div>
+               <div className="text-sm font-bold uppercase tracking-tight">SİSTEM REEL-TİME OLARAK HER 5 DAKİKADA BİR VERİLERİ SENKRONİZE EDER.</div>
+            </div>
+         </div>
+         <div className="text-[10px] font-black text-safety-yellow uppercase italic tracking-widest border border-safety-yellow/30 px-6 py-2">
+            VERSİYON 2.0.1 ALPHA
+         </div>
+      </div>
     </div>
   );
 }

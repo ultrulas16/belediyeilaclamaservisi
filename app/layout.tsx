@@ -1,59 +1,50 @@
 import type { Metadata } from "next";
-import { Inter, Outfit } from "next/font/google";
+import { Inter } from "next/font/google";
 import "./globals.css";
-import Header from "@/components/Header";
-import Footer from "@/components/Footer";
-import WhatsAppFAB from "@/components/WhatsAppFAB";
-import JsonLd from "@/components/JsonLd";
-import VisitorTracker from "@/components/VisitorTracker";
-import LiveChat from "@/components/LiveChat";
 import { siteConfig } from "@/lib/config";
+import JsonLd from "@/components/JsonLd";
+import LiveChat from "@/components/LiveChat";
+import CookieBanner from "@/components/CookieBanner";
+import Tracker from "@/components/Tracker";
 
-const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
-const outfit = Outfit({ subsets: ["latin"], variable: "--font-outfit" });
+const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: {
-    default: siteConfig.name,
-    template: `%s | ${siteConfig.name}`,
+    default: siteConfig.title,
+    template: `%s | ${siteConfig.name}`
   },
   description: siteConfig.description,
+  keywords: [
+    "belediye ilaçlama", "vektör mücadele", "haşere kontrol", "böcek ilaçlama", 
+    "fare ilaçlama", "halk sağlığı", "bursa ilaçlama", "istanbul ilaçlama",
+    "izmir ilaçlama", "apartman ilaçlama", "fabrika ilaçlama", "dezenfeksiyon"
+  ],
   metadataBase: new URL(siteConfig.url),
   alternates: {
-    canonical: "/",
+    canonical: '/',
+  },
+  manifest: "/manifest.json",
+  themeColor: "#FDE047",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: siteConfig.name,
   },
   openGraph: {
-    title: siteConfig.name,
+    title: siteConfig.title,
     description: siteConfig.description,
     url: siteConfig.url,
     siteName: siteConfig.name,
     locale: "tr_TR",
     type: "website",
   },
-  robots: {
-    index: true,
-    follow: true,
-  },
   twitter: {
     card: "summary_large_image",
-    title: siteConfig.name,
+    title: siteConfig.title,
     description: siteConfig.description,
   },
-  verification: {
-    google: "google-site-verification-id-placeholder",
-  },
-  manifest: "/manifest.json",
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "default",
-    title: siteConfig.name,
-  },
 };
-
-export const viewport = {
-  themeColor: "#1e3a8a",
-};
-
 
 export default function RootLayout({
   children,
@@ -61,85 +52,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="tr">
-      <body className={`${inter.variable} ${outfit.variable} font-sans antialiased min-h-screen flex flex-col`}>
-        <JsonLd 
-          data={{
-            "@context": "https://schema.org",
-            "@type": "LocalBusiness",
-            "name": siteConfig.name,
-            "image": `${siteConfig.url}/logo.png`,
-            "@id": siteConfig.url,
-            "url": siteConfig.url,
-            "telephone": siteConfig.phone,
-            "address": {
-              "@type": "PostalAddress",
-              "streetAddress": "Merkez Koordinasyon Birimi",
-              "addressLocality": "İstanbul",
-              "addressRegion": "TR",
-              "postalCode": "34000",
-              "addressCountry": "TR"
-            },
-            "geo": {
-              "@type": "GeoCoordinates",
-              "latitude": 41.0082,
-              "longitude": 28.9784
-            },
-            "openingHoursSpecification": {
-              "@type": "OpeningHoursSpecification",
-              "dayOfWeek": [
-                "Monday",
-                "Tuesday",
-                "Wednesday",
-                "Thursday",
-                "Friday",
-                "Saturday",
-                "Sunday"
-              ],
-              "opens": "00:00",
-              "closes": "23:59"
-            },
-            "sameAs": [
-              "https://www.facebook.com/buyuksehirilaclama",
-              "https://www.instagram.com/buyuksehirilaclama"
-            ],
-            "hasOfferCatalog": {
-              "@type": "OfferCatalog",
-              "name": "İlaçlama Hizmetleri",
-              "itemListElement": [
-                {
-                  "@type": "Offer",
-                  "itemOffered": {
-                    "@type": "Service",
-                    "name": "Hamamböceği İlaçlama"
-                  }
-                },
-                {
-                  "@type": "Offer",
-                  "itemOffered": {
-                    "@type": "Service",
-                    "name": "Fare ve Kemirgen İlaçlama"
-                  }
-                },
-                {
-                  "@type": "Offer",
-                  "itemOffered": {
-                    "@type": "Service",
-                    "name": "Pire İlaçlama"
-                  }
-                }
-              ]
-            }
-          }}
-        />
-        <Header />
-        <main className="flex-grow">
-          {children}
-        </main>
-        <Footer />
-        <WhatsAppFAB />
-        <VisitorTracker />
+    <html lang="tr" className="scroll-smooth">
+      <body className={inter.className}>
+        <JsonLd />
+        {children}
         <LiveChat />
+        <CookieBanner />
+        <Tracker />
       </body>
     </html>
   );
