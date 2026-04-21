@@ -1,7 +1,7 @@
 // Telegram Bildirim Sistemi
 // Bu modül Server-Side çalışır ve belirtilen Telegram botu üzerinden mesaj gönderir.
 
-const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN; // Deploy Trigger: Env Update
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 
 export async function sendTelegramNotification(message: string) {
