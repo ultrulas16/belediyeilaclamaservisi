@@ -3,14 +3,14 @@
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 
-export async function notifyAdmin(message: string) {
+export async function sendTelegramNotification(message: string) {
   if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) {
-    console.warn("Telegram configuration missing. Skipping notification.");
     return;
   }
 
+  const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
+
   try {
-    const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
     const response = await fetch(url, {
       method: "POST",
       headers: {
@@ -18,15 +18,55 @@ export async function notifyAdmin(message: string) {
       },
       body: JSON.stringify({
         chat_id: TELEGRAM_CHAT_ID,
-        text: `🌐 <b>buyuksehirilaclama.com.tr</b>\n\n${message}`,
+        text: message,
         parse_mode: "HTML",
       }),
     });
 
     if (!response.ok) {
-      console.error("Telegram notification failed", await response.text());
+      console.error("Telegram Bildirimi Başarısız:", await response.text());
     }
   } catch (error) {
-    console.error("Error in notifyAdmin:", error);
+    console.error("Telegram Hatası:", error);
   }
+}
+
+// Hazır Şablonlar
+export const notificationTemplates = {
+  newLead: (lead: { name: string, phone: string, service: string, location: string }) => `
+🚀 <b>YENİ MÜŞTERİ TALEBİ!</b>
+
+👤 <b>İsim:</b> ${lead.name}
+📞 <b>Telefon:</b> ${lead.phone}
+🛠 <b>Hizmet:</b> ${lead.service}
+📍 <b>Bölge:</b> ${lead.location}
+
+<i>Hemen iletişime geçmek için admin panelini kontrol edin.</i>
+  `,
+  
+  newVisitor: (visitor: { ip: string, path: string, referer: string, device: string }) => `
+📊 <b>ZİYARETÇİ ANALİTİĞİ</b>
+
+📍 <b>İzlenen Sayfa:</b> <code>${visitor.path}</code>
+🔍 <b>Geliş Kaynağı:</b> ${visitor.referer}
+📱 <b>Cihaz Tipi:</b> ${visitor.device}
+🔢 <b>Ziyaretçi IP:</b> <code>${visitor.ip}</code>
+
+🕒 <i>Tarih: ${new Date().toLocaleString('tr-TR')}</i>
+  `,
+
+  newChatMessage: (chat: { roomId: string, content: string, sender: string }) => `
+💬 <b>YENİ MESAJ (CANLI DESTEK)</b>
+
+📝 <b>Mesaj:</b> ${chat.content}
+👤 <b>Gönderen:</b> ${chat.sender}
+🆔 <b>Oda ID:</b> <code>${chat.roomId}</code>
+
+<i>Cevaplamak için admin panelini ziyaret edin.</i>
+  `
+};
+
+// Geriye dönük uyumluluk için notifyAdmin'i de tutalım
+export async function notifyAdmin(message: string) {
+    await sendTelegramNotification(`🌐 <b>buyuksehirilaclama.com.tr</b>\n\n${message}`);
 }

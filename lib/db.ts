@@ -9,6 +9,10 @@ export const supabase = supabaseUrl && supabaseAnonKey
   ? createClient(supabaseUrl, supabaseAnonKey) 
   : null;
 
+export const supabaseAdmin = supabaseUrl && process.env.SUPABASE_SERVICE_ROLE_KEY
+  ? createClient(supabaseUrl, process.env.SUPABASE_SERVICE_ROLE_KEY)
+  : null;
+
 export interface Lead {
   id: string;
   name: string;
@@ -174,7 +178,7 @@ export async function getChatMessages(sessionId: string): Promise<ChatMessage[]>
   }
 }
 
-export async function sendChatMessage(message: Omit<ChatMessage, 'id' | 'created_at' | 'is_read'>): Promise<ChatMessage | null> {
+export async function sendMessage(message: Omit<ChatMessage, 'id' | 'created_at' | 'is_read'>): Promise<ChatMessage | null> {
   if (!supabase) return null;
 
   try {
@@ -207,6 +211,45 @@ export async function sendChatMessage(message: Omit<ChatMessage, 'id' | 'created
     return data;
   } catch (error) {
     console.error('Error in sendChatMessage:', error);
+    return null;
+  }
+}
+
+export async function getOrCreateChatRoom(session_id: string, full_name?: string, phone?: string): Promise<ChatSession | null> {
+  if (!supabase) return null;
+
+  try {
+    // Önce odayı arayalım
+    const { data: existingRoom } = await supabase
+      .from('chat_sessions')
+      .select('*')
+      .eq('session_id', session_id)
+      .single();
+
+    if (existingRoom) return existingRoom;
+
+    // Eğer yoksa ve isim/tel geldiyse oluşturalım (Lead Capture)
+    if (full_name && phone) {
+      const { data: newRoom, error } = await supabase
+        .from('chat_sessions')
+        .insert([
+          {
+            session_id,
+            full_name,
+            phone,
+            created_at: new Date().toISOString()
+          }
+        ])
+        .select()
+        .single();
+      
+      if (error) throw error;
+      return newRoom;
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Error in getOrCreateChatRoom:', error);
     return null;
   }
 }
@@ -305,6 +348,10 @@ export async function logVisit(event: Omit<AnalyticEvent, 'id' | 'created_at'>):
     console.error('Error in logVisit:', error);
     return false;
   }
+}
+
+export async function getVisitStats() {
+  return await getAnalyticsSummary();
 }
 
 export async function getAnalyticsSummary() {
