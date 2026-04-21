@@ -5,7 +5,7 @@ import { siteConfig } from "@/lib/config";
 import JsonLd from "@/components/JsonLd";
 import LiveChat from "@/components/LiveChat";
 import CookieBanner from "@/components/CookieBanner";
-import Tracker from "@/components/Tracker";
+import VisitorTracker from "@/components/VisitorTracker";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -58,7 +58,7 @@ export default function RootLayout({
         {children}
         <LiveChat />
         <CookieBanner />
-        <Tracker />
+        <VisitorTracker />
       </body>
     </html>
   );
