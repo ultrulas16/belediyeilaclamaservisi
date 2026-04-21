@@ -137,7 +137,9 @@ export default function AdminChatPage() {
                       {room.full_name || "Anonim Ziyaretçi"}
                     </span>
                     <span className="text-[9px] text-slate-400 font-bold uppercase">
-                      {new Date(room.updated_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      {room.updated_at 
+                        ? new Date(room.updated_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) 
+                        : '-'}
                     </span>
                   </div>
                   <p className="text-[10px] text-slate-500 font-medium truncate italic">

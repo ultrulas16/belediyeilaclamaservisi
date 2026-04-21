@@ -70,7 +70,7 @@ export default function LiveChat() {
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      supabase?.removeChannel(channel);
     };
   }, [roomId]);
 
