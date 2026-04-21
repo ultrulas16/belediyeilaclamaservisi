@@ -58,7 +58,7 @@ export async function getLeads(): Promise<Lead[]> {
 
   try {
     const { data, error } = await supabase
-      .from('leads')
+      .from('buyuksehir_leads')
       .select('*')
       .order('date', { ascending: false });
 
@@ -85,7 +85,7 @@ export async function addLead(lead: Omit<Lead, 'id' | 'date' | 'status' | 'locat
 
   try {
     const { data, error } = await supabase
-      .from('leads')
+      .from('buyuksehir_leads')
       .insert([
         {
           ...lead,
@@ -121,7 +121,7 @@ export async function updateLeadStatus(id: string, status: Lead['status']): Prom
 
   try {
     const { error } = await supabase
-      .from('leads')
+      .from('buyuksehir_leads')
       .update({ status })
       .eq('id', id);
 
@@ -141,7 +141,7 @@ export async function deleteLead(id: string): Promise<boolean> {
     
     try {
         const { error } = await supabase
-            .from('leads')
+            .from('buyuksehir_leads')
             .delete()
             .eq('id', id);
             
