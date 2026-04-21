@@ -47,14 +47,21 @@ export default function AdminChatPage() {
     // Subscribe to all new messages to update session list
     if (!supabase) return;
     const channel = supabase
-      .channel('admin_sessions')
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'messages' },
-        () => {
-          fetchSessions();
-        }
-      )
+      .channel('admin-chat-updates')
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'buyuksehir_messages' 
+      }, () => {
+        fetchSessions();
+      })
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'buyuksehir_chat_sessions' 
+      }, () => {
+        fetchSessions();
+      })
       .subscribe();
 
     return () => {

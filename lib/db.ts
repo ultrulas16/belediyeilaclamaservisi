@@ -161,9 +161,9 @@ export async function getChatMessages(sessionId: string): Promise<ChatMessage[]>
 
   try {
     const { data, error } = await supabase
-      .from('messages')
+      .from('buyuksehir_messages')
       .select('*')
-      .eq('session_id', sessionId)
+      .eq('room_id', sessionId)
       .order('created_at', { ascending: true });
 
     if (error) {
@@ -183,11 +183,12 @@ export async function sendMessage(message: Omit<ChatMessage, 'id' | 'created_at'
 
   try {
     const { data, error } = await supabase
-      .from('messages')
+      .from('buyuksehir_messages')
       .insert([
         {
-          ...message,
-          is_read: false,
+          room_id: message.session_id,
+          content: message.content,
+          sender: message.sender,
           created_at: new Date().toISOString()
         }
       ])
@@ -199,16 +200,8 @@ export async function sendMessage(message: Omit<ChatMessage, 'id' | 'created_at'
       return null;
     }
 
-    // Notify Admin if it's from user (Non-blocking)
-    if (message.sender === 'user' && !message.content.includes('[SİSTEM]')) {
-      try {
-        notifyAdmin(`<b>💬 YENİ MESAJ!</b>\n\n🆔 Oturum: #${message.session_id.substring(0, 4)}\n✉️ Mesaj: ${message.content}`);
-      } catch (e) {
-        console.error('Notification error:', e);
-      }
-    }
-
-    return data;
+    // Geriye dönük uyumluluk için session_id ekleyelim (ChatMessage interface'i için)
+    return { ...data, session_id: data.room_id };
   } catch (error) {
     console.error('Error in sendMessage:', error);
     return null;
@@ -224,7 +217,7 @@ export async function getOrCreateChatRoom(session_id: string, full_name?: string
   try {
     // Önce odayı arayalım
     const { data: existingRoom } = await supabase
-      .from('chat_sessions')
+      .from('buyuksehir_chat_sessions')
       .select('*')
       .eq('session_id', session_id)
       .single();
@@ -234,7 +227,7 @@ export async function getOrCreateChatRoom(session_id: string, full_name?: string
     // Eğer yoksa ve isim/tel geldiyse oluşturalım (Lead Capture)
     if (full_name && phone) {
       const { data: newRoom, error } = await supabase
-        .from('chat_sessions')
+        .from('buyuksehir_chat_sessions')
         .insert([
           {
             session_id,
@@ -262,11 +255,12 @@ export async function upsertChatSession(session: Omit<ChatSession, 'id' | 'creat
 
   try {
     const { error } = await supabase
-      .from('chat_sessions')
+      .from('buyuksehir_chat_sessions')
       .upsert([
         {
           ...session,
-          created_at: new Date().toISOString()
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
         }
       ], { onConflict: 'session_id' });
 
@@ -274,14 +268,6 @@ export async function upsertChatSession(session: Omit<ChatSession, 'id' | 'creat
       console.error('Error upserting chat session:', error);
       return false;
     }
-
-    // Notify Admin of new connection (Non-blocking)
-    try {
-      notifyAdmin(`<b>⚡ YENİ CANLI DESTEK BAĞLANTISI!</b>\n\n👤 İsim: ${session.full_name}\n📞 Tel: ${session.phone}\n🆔 ID: #${session.session_id.substring(0, 4)}`);
-    } catch (e) {
-      console.error('Notification error:', e);
-    }
-
     return true;
   } catch (error) {
     console.error('Error in upsertChatSession:', error);
@@ -289,41 +275,17 @@ export async function upsertChatSession(session: Omit<ChatSession, 'id' | 'creat
   }
 }
 
-export async function getActiveChatRooms(): Promise<{ session_id: string, last_message: string, created_at: string, user?: ChatSession }[]> {
+export async function getActiveChatRooms(): Promise<any[]> {
     if (!supabase) return [];
     
     try {
-        // Fetch sessions first
-        const { data: messages, error: mError } = await supabase
-            .from('messages')
-            .select('session_id, content, created_at')
+        const { data, error } = await supabase
+            .from('buyuksehir_chat_sessions')
+            .select('*')
             .order('created_at', { ascending: false });
-            
-        if (mError) return [];
-
-        // Fetch user metadata
-        const { data: userData, error: uError } = await supabase
-            .from('chat_sessions')
-            .select('*');
-            
-        const userMap = new Map();
-        if (!uError && userData) {
-            userData.forEach(u => userMap.set(u.session_id, u));
-        }
-        
-        const sessionsMap = new Map();
-        messages.forEach((msg: any) => {
-            if (!sessionsMap.has(msg.session_id)) {
-                sessionsMap.set(msg.session_id, {
-                    session_id: msg.session_id,
-                    last_message: msg.content,
-                    created_at: msg.created_at,
-                    user: userMap.get(msg.session_id)
-                });
-            }
-        });
-        
-        return Array.from(sessionsMap.values());
+             
+        if (error) return [];
+        return data || [];
     } catch (error) {
         return [];
     }
@@ -334,7 +296,7 @@ export async function logVisit(event: Omit<AnalyticEvent, 'id' | 'created_at'>):
 
   try {
     const { error } = await supabase
-      .from('analytics')
+      .from('buyuksehir_analytics')
       .insert([
         {
           ...event,
@@ -362,7 +324,7 @@ export async function getAnalyticsSummary() {
 
   try {
     const { data: allData, error } = await supabase
-      .from('analytics')
+      .from('buyuksehir_analytics')
       .select('*')
       .order('created_at', { ascending: false });
 
